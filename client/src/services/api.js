@@ -231,6 +231,20 @@ const api = {
       throw error;
     }
   },
+
+  // Run a shell command
+  runCommand: async (command) => {
+    try {
+      const response = await axios.post(`${API_URL}/run_command`, {
+        session_id: SESSION_ID,
+        command
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error running command:', error);
+      throw error;
+    }
+  },
 };
 
 export { 

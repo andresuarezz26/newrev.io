@@ -16,6 +16,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 import queue
 from dotenv import load_dotenv
+from aider.run_cmd import run_cmd
 
 # Add the parent directory to sys.path to be able to import aider modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -245,11 +246,11 @@ def get_or_create_session(session_id, create=True):
         except Exception as e:
             logger.error(f"Failed to create session: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
-            return None, str(e)
+            return None
     else:
         logger.debug(f"Using existing session: {session_id}")
     
-    return sessions.get(session_id), None
+    return sessions.get(session_id)
 
 # Routes
 @app.route('/api/init', methods=['POST'])
@@ -261,10 +262,10 @@ def initialize_session():
     if not session_id:
         return jsonify({'status': 'error', 'message': 'Session ID is required'}), 400
     
-    session, error = get_or_create_session(session_id)
+    session = get_or_create_session(session_id)
     
-    if error:
-        return jsonify({'status': 'error', 'message': error}), 500
+    if not session:
+        return jsonify({'status': 'error', 'message': 'Failed to create session'}), 500
     
     return jsonify({
         'status': 'success',
@@ -282,10 +283,10 @@ def send_message():
     if not session_id or not message:
         return jsonify({'status': 'error', 'message': 'Session ID and message are required'}), 400
     
-    session, error = get_or_create_session(session_id)
+    session = get_or_create_session(session_id)
     
-    if error:
-        return jsonify({'status': 'error', 'message': error}), 500
+    if not session:
+        return jsonify({'status': 'error', 'message': 'Failed to create session'}), 500
     
     coder = session['coder']
     
@@ -409,11 +410,7 @@ def get_files():
             return jsonify({'status': 'error', 'message': 'Session ID is required'}), 400
         
         logger.debug(f"Getting session for ID: {session_id}")
-        session, error = get_or_create_session(session_id)
-        
-        if error:
-            logger.error(f"Error getting session: {error}")
-            return jsonify({'status': 'error', 'message': error}), 500
+        session = get_or_create_session(session_id)
         
         if not session:
             logger.error(f"No session found for ID: {session_id}")
@@ -462,10 +459,10 @@ def add_files():
     if not session_id:
         return jsonify({'status': 'error', 'message': 'Session ID is required'}), 400
     
-    session, error = get_or_create_session(session_id)
+    session = get_or_create_session(session_id)
     
-    if error:
-        return jsonify({'status': 'error', 'message': error}), 500
+    if not session:
+        return jsonify({'status': 'error', 'message': 'Failed to create session'}), 500
     
     coder = session['coder']
     added_files = []
@@ -491,10 +488,10 @@ def remove_files():
     if not session_id:
         return jsonify({'status': 'error', 'message': 'Session ID is required'}), 400
     
-    session, error = get_or_create_session(session_id)
+    session = get_or_create_session(session_id)
     
-    if error:
-        return jsonify({'status': 'error', 'message': error}), 500
+    if not session:
+        return jsonify({'status': 'error', 'message': 'Failed to create session'}), 500
     
     coder = session['coder']
     removed_files = []
@@ -519,10 +516,10 @@ def add_web_page():
     if not session_id or not url:
         return jsonify({'status': 'error', 'message': 'Session ID and URL are required'}), 400
     
-    session, error = get_or_create_session(session_id)
+    session = get_or_create_session(session_id)
     
-    if error:
-        return jsonify({'status': 'error', 'message': error}), 500
+    if not session:
+        return jsonify({'status': 'error', 'message': 'Failed to create session'}), 500
     
     content = AiderAPI.scrape_url(url)
     
@@ -543,10 +540,10 @@ def undo_commit():
     if not session_id or not commit_hash:
         return jsonify({'status': 'error', 'message': 'Session ID and commit hash are required'}), 400
     
-    session, error = get_or_create_session(session_id)
+    session = get_or_create_session(session_id)
     
-    if error:
-        return jsonify({'status': 'error', 'message': error}), 500
+    if not session:
+        return jsonify({'status': 'error', 'message': 'Failed to create session'}), 500
     
     coder = session['coder']
     
@@ -578,10 +575,10 @@ def clear_history():
     if not session_id:
         return jsonify({'status': 'error', 'message': 'Session ID is required'}), 400
     
-    session, error = get_or_create_session(session_id)
+    session = get_or_create_session(session_id)
     
-    if error:
-        return jsonify({'status': 'error', 'message': error}), 500
+    if not session:
+        return jsonify({'status': 'error', 'message': 'Failed to create session'}), 500
     
     coder = session['coder']
     coder.done_messages = []
@@ -630,6 +627,51 @@ def get_repo_file():
     except Exception as e:
         print(f"Error reading file: {str(e)}")
         return jsonify({'status': 'error', 'message': f'Error reading file: {str(e)}'}), 500
+
+@app.route('/api/run_command', methods=['POST'])
+def run_command():
+    """Run a shell command and return the output"""
+    try:
+        data = request.get_json()
+        if not data or 'command' not in data:
+            return jsonify({'error': 'No command provided'}), 400
+
+        command = data['command']
+        session_id = data.get('session_id')
+        
+        # Get or create session
+        session = get_or_create_session(session_id)
+        if not session:
+            return jsonify({'error': 'Invalid session'}), 400
+
+        # Get the coder instance
+        coder = session.get('coder')
+        if not coder:
+            return jsonify({'error': 'No coder instance found'}), 400
+
+        # Run the command using aider's run_cmd
+        exit_status, output = run_cmd(
+            command,
+            verbose=False,
+            error_print=None,
+            cwd=coder.root
+        )
+
+        # Format the response
+        response = {
+            'exit_status': exit_status,
+            'output': output,
+            'success': exit_status == 0
+        }
+
+        # If the command failed, add error context
+        if exit_status != 0:
+            response['error'] = f'Command failed with exit status {exit_status}'
+
+        return jsonify(response)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     print("=== Starting Aider API Server ===")
