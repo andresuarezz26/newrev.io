@@ -610,19 +610,32 @@ def get_repo_file():
         return jsonify({'status': 'error', 'message': f'Failed to find git repository: {e}'}), 500
     
     # Check if the file exists in the repository
-    full_path = os.path.join(repo.git_dir, file_name)
+    full_path = os.path.join(repo.working_tree_dir, file_name)
     
     if not os.path.exists(full_path):
         return jsonify({'status': 'error', 'message': f'File {file_name} not found in repository'}), 404
     
     try:
-        # Read the file content
-        with open(full_path, 'r') as f:
+        # Check if the file is binary
+        text_extensions = {'.txt', '.py', '.js', '.jsx', '.ts', '.tsx', '.json', '.md', '.css', '.html', '.yml', '.yaml', '.env', '.sh', '.bash', '.zsh', '.gitignore', '.editorconfig', '.prettierrc', '.eslintrc'}
+        is_binary = not any(full_path.lower().endswith(ext) for ext in text_extensions)
+        
+        if is_binary:
+            # For binary files, return a message indicating it's a binary file
+            return jsonify({
+                'status': 'success',
+                'file_content': '[Binary file content not displayed]',
+                'is_binary': True
+            })
+        
+        # For text files, read and return the content
+        with open(full_path, 'r', encoding='utf-8') as f:
             file_content = f.read()
         
         return jsonify({
             'status': 'success',
-            'file_content': file_content
+            'file_content': file_content,
+            'is_binary': False
         })
     except Exception as e:
         print(f"Error reading file: {str(e)}")

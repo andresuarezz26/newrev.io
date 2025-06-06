@@ -232,7 +232,7 @@ const api = {
     }
   },
 
-  // Run a shell command
+  // Run a command
   runCommand: async (command) => {
     try {
       const response = await axios.post(`${API_URL}/run_command`, {
@@ -243,6 +243,24 @@ const api = {
     } catch (error) {
       console.error('Error running command:', error);
       throw error;
+    }
+  },
+
+  getFileContent: async (filePath) => {
+    try {
+      console.log('Fetching file content for:', filePath)
+      const response = await axios.get(`${API_URL}/repo_file`, {
+        params: {
+          file_name: filePath
+        }
+      })
+      return {
+        status: response.data.status,
+        content: response.data.file_content
+      }
+    } catch (error) {
+      console.error('Error fetching file content:', error)
+      throw error
     }
   },
 };

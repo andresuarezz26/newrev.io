@@ -33,7 +33,7 @@ const FileNode = ({ item, depth, onFileClick, inchatFiles, onToggleFile }) => {
     if (item.type === "folder") {
       setIsExpanded(!isExpanded)
     } else {
-      onFileClick(item)
+      onFileClick(item.path)
     }
   }
 
@@ -130,7 +130,7 @@ const FileNode = ({ item, depth, onFileClick, inchatFiles, onToggleFile }) => {
   )
 }
 
-const FileManager = () => {
+const FileManager = ({ onFileSelect }) => {
   const [files, setFiles] = useState([])
   const [fileTree, setFileTree] = useState([])
   const [inchatFiles, setInchatFiles] = useState([])
@@ -156,8 +156,7 @@ const FileManager = () => {
   }
 
   const handleFileClick = (file) => {
-    // For now, just toggle the file in chat when clicked
-    handleToggleFile(file.path)
+    onFileSelect(file)
   }
 
   useEffect(() => {
