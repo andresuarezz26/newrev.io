@@ -50,35 +50,48 @@ const Layout = () => {
         flexDirection: "column",
         height: "100vh",
         fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        backgroundColor: "#1e1e1e",
       }}
     >
       <AppBar
         position="static"
         sx={{
-          backgroundColor: "#fff",
-          color: "#000",
+          backgroundColor: "#1e1e1e",
+          color: "#e0e0e0",
           boxShadow: "none",
-          borderBottom: "1px solid #f0f0f0",
+          borderBottom: "1px solid #404040",
         }}
       >
         <Toolbar>
-          <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600, fontSize: "20px" }}>
+          <Typography 
+            variant="h6" 
+            noWrap 
+            component="div" 
+            sx={{ 
+              fontWeight: 600, 
+              fontSize: "18px",
+              color: "#e0e0e0",
+              fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
+            }}
+          >
             Newrev.io
           </Typography>
           <Box sx={{ flexGrow: 1 }} />
           <Button
             variant="outlined"
-            startIcon={<OpenInNewIcon />}
+            startIcon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
             onClick={() => window.open(previewUrl, "_blank")}
             sx={{
               mr: 1,
               textTransform: "none",
-              borderColor: "#000",
-              color: "#000",
-              height: "36px",
+              borderColor: "#404040",
+              color: "#e0e0e0",
+              height: "32px",
+              fontSize: "13px",
+              fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
               "&:hover": {
-                borderColor: "#333",
-                backgroundColor: "rgba(0, 0, 0, 0.04)",
+                borderColor: "#505050",
+                backgroundColor: "rgba(255, 255, 255, 0.05)",
               },
             }}
           >
@@ -87,14 +100,17 @@ const Layout = () => {
           <IconButton 
             onClick={togglePreview} 
             sx={{ 
-              ml: 1, 
-              backgroundColor: showPreview ? 'rgba(0, 0, 0, 0.04)' : 'transparent',
+              ml: 1,
+              color: "#e0e0e0",
+              backgroundColor: showPreview ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+              width: 32,
+              height: 32,
               '&:hover': {
-                backgroundColor: 'rgba(0, 0, 0, 0.08)'
+                backgroundColor: 'rgba(255, 255, 255, 0.15)'
               }
             }}
           >
-            {showPreview ? <CloseIcon /> : <AspectRatioIcon />}
+            {showPreview ? <CloseIcon sx={{ fontSize: 18 }} /> : <AspectRatioIcon sx={{ fontSize: 18 }} />}
           </IconButton>
         </Toolbar>
       </AppBar>
@@ -106,16 +122,16 @@ const Layout = () => {
               "& .MuiDrawer-paper": {
                 boxSizing: "border-box",
                 width: drawerWidth,
-                borderRight: "1px solid #f0f0f0",
+                borderRight: "1px solid #404040",
                 height: "100%",
                 position: "relative",
+                backgroundColor: "#1e1e1e",
               },
             }}
             open
           >
             {drawer}
           </Drawer>
-
 
         <Box
           component="main"
@@ -126,7 +142,7 @@ const Layout = () => {
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
-            backgroundColor: "#fff",
+            backgroundColor: "#1e1e1e",
           }}
         >
           <Box sx={{ flex: 1, overflow: "hidden", padding: "15px" }}>
@@ -139,10 +155,11 @@ const Layout = () => {
           <Box
             sx={{
               width: `${iframeWidth}px`,
-              borderLeft: "1px solid #f0f0f0",
+              borderLeft: "1px solid #404040",
               height: "100%",
               position: "relative",
               zIndex: 1,
+              backgroundColor: "#1e1e1e",
             }}
           >
             <iframe

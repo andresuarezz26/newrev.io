@@ -48,41 +48,42 @@ const FileNode = ({ item, depth, onFileClick, inchatFiles, onToggleFile }) => {
           gap: 1,
           p: 1,
           pl: depth * 2 + 1,
-          borderRadius: '8px',
+          borderRadius: '6px',
           cursor: 'pointer',
           transition: 'all 0.15s ease',
-          backgroundColor: isInChat ? alpha('#1976d2', 0.04) : 'transparent',
-          borderLeft: isInChat ? '3px solid #1976d2' : '3px solid transparent',
+          backgroundColor: isInChat ? alpha('#007acc', 0.15) : 'transparent',
+          borderLeft: isInChat ? '2px solid #007acc' : '2px solid transparent',
           '&:hover': {
-            backgroundColor: isInChat ? alpha('#1976d2', 0.08) : alpha('#000', 0.02),
+            backgroundColor: isInChat ? alpha('#007acc', 0.2) : alpha('#ffffff', 0.05),
           }
         }}
         onClick={handleClick}
       >
         {item.type === "folder" && (
-          <Box sx={{ color: '#1976d2', display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ color: '#888888', display: 'flex', alignItems: 'center' }}>
             {isExpanded ? 
-              <KeyboardArrowDownIcon sx={{ fontSize: 18 }} /> : 
-              <KeyboardArrowRightIcon sx={{ fontSize: 18 }} />
+              <KeyboardArrowDownIcon sx={{ fontSize: 16 }} /> : 
+              <KeyboardArrowRightIcon sx={{ fontSize: 16 }} />
             }
           </Box>
         )}
         
         {item.type === "folder" ? (
-          <FolderIcon fontSize="small" sx={{ color: '#1976d2' }} />
+          <FolderIcon fontSize="small" sx={{ color: '#888888' }} />
         ) : (
-          <CodeIcon fontSize="small" sx={{ color: '#555' }} />
+          <CodeIcon fontSize="small" sx={{ color: '#888888' }} />
         )}
         
         <Typography 
           sx={{ 
-            fontSize: '14px',
-            color: isInChat ? '#1976d2' : '#333',
-            fontWeight: isInChat ? 600 : 400,
+            fontSize: '13px',
+            color: isInChat ? '#007acc' : '#e0e0e0',
+            fontWeight: isInChat ? 500 : 400,
             flexGrow: 1,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
-            textOverflow: 'ellipsis'
+            textOverflow: 'ellipsis',
+            fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
           }}
         >
           {item.name}
@@ -97,15 +98,15 @@ const FileNode = ({ item, depth, onFileClick, inchatFiles, onToggleFile }) => {
                 onToggleFile(item.path);
               }}
               sx={{
-                color: isInChat ? "#f44336" : "#1976d2",
-                width: 28,
-                height: 28,
+                color: isInChat ? "#ff6b6b" : "#007acc",
+                width: 24,
+                height: 24,
                 "&:hover": {
-                  backgroundColor: isInChat ? alpha("#f44336", 0.08) : alpha("#1976d2", 0.08),
+                  backgroundColor: isInChat ? alpha("#ff6b6b", 0.1) : alpha("#007acc", 0.1),
                 },
               }}
             >
-              {isInChat ? <RemoveIcon fontSize="small" /> : <AddIcon fontSize="small" />}
+              {isInChat ? <RemoveIcon sx={{ fontSize: 16 }} /> : <AddIcon sx={{ fontSize: 16 }} />}
             </IconButton>
           </Tooltip>
         )}
@@ -148,10 +149,10 @@ const FileManager = () => {
     
     // Return appropriate icon based on file type
     if (['js', 'jsx', 'ts', 'tsx', 'py', 'java', 'c', 'cpp', 'cs', 'go', 'rb'].includes(ext)) {
-      return <CodeIcon fontSize="small" sx={{ color: '#555' }} />
+      return <CodeIcon fontSize="small" sx={{ color: '#888888' }} />
     }
     
-    return <FolderIcon fontSize="small" sx={{ color: '#555' }} />
+    return <FolderIcon fontSize="small" sx={{ color: '#888888' }} />
   }
 
   const handleFileClick = (file) => {
@@ -235,7 +236,7 @@ const FileManager = () => {
   if (isLoading && files.length === 0) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "200px" }}>
-        <CircularProgress sx={{ color: "#1976d2" }} />
+        <CircularProgress sx={{ color: "#007acc" }} />
       </Box>
     )
   }
@@ -245,13 +246,13 @@ const FileManager = () => {
       <Paper
         sx={{
           p: 2,
-          bgcolor: "#ffebee",
-          borderRadius: "12px",
+          bgcolor: "#2d1b1b",
+          borderRadius: "8px",
           boxShadow: "none",
-          border: "1px solid #ffcdd2",
+          border: "1px solid #4a2626",
         }}
       >
-        <Typography color="error" sx={{ fontSize: "14px" }}>
+        <Typography sx={{ fontSize: "13px", color: "#ff6b6b" }}>
           {error}
         </Typography>
       </Paper>
@@ -300,25 +301,27 @@ const FileManager = () => {
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
-        boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-        border: "1px solid #eaeaea",
-        borderRadius: "16px",
+        boxShadow: "none",
+        border: "none",
+        borderRadius: "0",
+        backgroundColor: "#1e1e1e",
       }}
     >
-      <Box sx={{ p: 2.5, borderBottom: "1px solid #f0f0f0" }}>
+      <Box sx={{ p: 2.5, borderBottom: "1px solid #404040" }}>
         <Typography
           variant="h6"
           sx={{
-            fontWeight: 700,
-            fontSize: "18px",
+            fontWeight: 600,
+            fontSize: "16px",
             mb: 2,
-            color: "#111",
+            color: "#e0e0e0",
             display: 'flex',
             alignItems: 'center',
-            gap: 1
+            gap: 1,
+            fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
           }}
         >
-          <FolderIcon sx={{ color: '#1976d2' }} />
+          <FolderIcon sx={{ color: '#888888', fontSize: 20 }} />
           Project Files
         </Typography>
 
@@ -328,11 +331,12 @@ const FileManager = () => {
             <Typography
               variant="subtitle2"
               sx={{
-                color: "#666",
-                fontSize: "12px",
+                color: "#888888",
+                fontSize: "11px",
                 mb: 1,
                 textTransform: "uppercase",
-                letterSpacing: "0.5px"
+                letterSpacing: "0.5px",
+                fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
               }}
             >
               Selected Files
@@ -345,12 +349,19 @@ const FileManager = () => {
                   size="small"
                   onDelete={() => handleToggleFile(file)}
                   sx={{
-                    backgroundColor: alpha('#1976d2', 0.1),
-                    color: '#1976d2',
+                    backgroundColor: alpha('#007acc', 0.2),
+                    color: '#007acc',
+                    fontSize: '12px',
+                    height: '24px',
+                    '& .MuiChip-label': {
+                      px: 1,
+                      fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
+                    },
                     '& .MuiChip-deleteIcon': {
-                      color: '#1976d2',
+                      color: '#007acc',
+                      fontSize: '16px',
                       '&:hover': {
-                        color: '#f44336'
+                        color: '#ff6b6b'
                       }
                     }
                   }}
@@ -370,28 +381,35 @@ const FileManager = () => {
           sx={{
             mb: 2,
             "& .MuiOutlinedInput-root": {
-              borderRadius: "12px",
-              backgroundColor: "#f9f9f9",
+              borderRadius: "6px",
+              backgroundColor: "#2d2d2d",
+              color: "#ffffff",
               transition: "all 0.2s ease",
               "& fieldset": {
-                borderColor: "#e0e0e0",
+                borderColor: "#404040",
               },
               "&:hover fieldset": {
-                borderColor: "#bdbdbd",
+                borderColor: "#505050",
               },
               "&.Mui-focused fieldset": {
-                borderColor: "#1976d2",
+                borderColor: "#007acc",
               },
             },
             "& .MuiInputBase-input": {
-              padding: "12px 14px",
-              fontSize: "14px",
+              padding: "10px 12px",
+              fontSize: "13px",
+              color: "#ffffff",
+              fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
+              "&::placeholder": {
+                color: "#888888",
+                opacity: 1,
+              },
             },
           }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon sx={{ color: "#666" }} />
+                <SearchIcon sx={{ color: "#888888", fontSize: 18 }} />
               </InputAdornment>
             ),
           }}
@@ -402,12 +420,15 @@ const FileManager = () => {
             label={`${inchatFiles.length} files in chat`} 
             size="small"
             sx={{ 
-              backgroundColor: inchatFiles.length > 0 ? alpha('#1976d2', 0.1) : '#f5f5f5',
-              color: inchatFiles.length > 0 ? '#1976d2' : '#666',
-              fontWeight: 500,
-              borderRadius: '8px',
+              backgroundColor: inchatFiles.length > 0 ? alpha('#007acc', 0.2) : '#404040',
+              color: inchatFiles.length > 0 ? '#007acc' : '#888888',
+              fontWeight: 400,
+              borderRadius: '6px',
+              fontSize: '12px',
+              height: '24px',
               '& .MuiChip-label': {
-                px: 1
+                px: 1,
+                fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
               }
             }}
           />
@@ -417,19 +438,19 @@ const FileManager = () => {
       <Box sx={{ overflow: "auto", flex: 1, p: 1 }}>
         {isLoading && files.length === 0 ? (
           <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "200px" }}>
-            <CircularProgress sx={{ color: "#1976d2" }} />
+            <CircularProgress sx={{ color: "#007acc" }} />
           </Box>
         ) : error ? (
           <Paper
             sx={{
               p: 2,
-              bgcolor: "#ffebee",
-              borderRadius: "12px",
+              bgcolor: "#2d1b1b",
+              borderRadius: "8px",
               boxShadow: "none",
-              border: "1px solid #ffcdd2",
+              border: "1px solid #4a2626",
             }}
           >
-            <Typography color="error" sx={{ fontSize: "14px" }}>
+            <Typography sx={{ fontSize: "13px", color: "#ff6b6b" }}>
               {error}
             </Typography>
           </Paper>
@@ -446,27 +467,28 @@ const FileManager = () => {
                     alignItems: 'center',
                     gap: 1,
                     p: 1,
-                    borderRadius: '8px',
+                    borderRadius: '6px',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
-                    backgroundColor: isInChat ? alpha('#1976d2', 0.04) : 'transparent',
-                    borderLeft: isInChat ? '3px solid #1976d2' : '3px solid transparent',
+                    backgroundColor: isInChat ? alpha('#007acc', 0.15) : 'transparent',
+                    borderLeft: isInChat ? '2px solid #007acc' : '2px solid transparent',
                     '&:hover': {
-                      backgroundColor: isInChat ? alpha('#1976d2', 0.08) : alpha('#000', 0.02),
+                      backgroundColor: isInChat ? alpha('#007acc', 0.2) : alpha('#ffffff', 0.05),
                     }
                   }}
                   onClick={() => handleToggleFile(file)}
                 >
-                  <CodeIcon fontSize="small" sx={{ color: '#555' }} />
+                  <CodeIcon fontSize="small" sx={{ color: '#888888' }} />
                   <Typography 
                     sx={{ 
-                      fontSize: '14px',
-                      color: isInChat ? '#1976d2' : '#333',
-                      fontWeight: isInChat ? 600 : 400,
+                      fontSize: '13px',
+                      color: isInChat ? '#007acc' : '#e0e0e0',
+                      fontWeight: isInChat ? 500 : 400,
                       flexGrow: 1,
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
-                      textOverflow: 'ellipsis'
+                      textOverflow: 'ellipsis',
+                      fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
                     }}
                   >
                     {file}
@@ -479,15 +501,15 @@ const FileManager = () => {
                         handleToggleFile(file);
                       }}
                       sx={{
-                        color: isInChat ? "#f44336" : "#1976d2",
-                        width: 28,
-                        height: 28,
+                        color: isInChat ? "#ff6b6b" : "#007acc",
+                        width: 24,
+                        height: 24,
                         "&:hover": {
-                          backgroundColor: isInChat ? alpha("#f44336", 0.08) : alpha("#1976d2", 0.08),
+                          backgroundColor: isInChat ? alpha("#ff6b6b", 0.1) : alpha("#007acc", 0.1),
                         },
                       }}
                     >
-                      {isInChat ? <RemoveIcon fontSize="small" /> : <AddIcon fontSize="small" />}
+                      {isInChat ? <RemoveIcon sx={{ fontSize: 16 }} /> : <AddIcon sx={{ fontSize: 16 }} />}
                     </IconButton>
                   </Tooltip>
                 </Box>
@@ -495,12 +517,13 @@ const FileManager = () => {
             })}
             {filteredFiles.length === 0 && (
               <Box sx={{ textAlign: "center", py: 4 }}>
-                <SearchIcon sx={{ fontSize: 40, color: "#ccc", mb: 1 }} />
+                <SearchIcon sx={{ fontSize: 32, color: "#555555", mb: 1 }} />
                 <Typography
                   variant="body2"
                   sx={{
-                    fontSize: "14px",
-                    color: "#888",
+                    fontSize: "13px",
+                    color: "#888888",
+                    fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
                   }}
                 >
                   No matching files found
