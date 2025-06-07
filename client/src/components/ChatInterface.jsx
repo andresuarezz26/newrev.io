@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react"
 import { Button, TextField, Paper, Typography, Box, Divider, CircularProgress, IconButton } from "@mui/material"
 import SendIcon from "@mui/icons-material/Send"
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown"
 import api, { addEventListener, removeEventListener, SESSION_ID } from "../services/api"
 
 const ChatInterface = () => {
@@ -15,9 +14,6 @@ const ChatInterface = () => {
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const isUserScrollingRef = useRef(false)
-  const [showScrollButton, setShowScrollButton] = useState(false)
-  const lastScrollPositionRef = useRef(0)
-  const lastScrollHeightRef = useRef(0)
 
   // Effect to initialize the session
   useEffect(() => {
@@ -37,63 +33,47 @@ const ChatInterface = () => {
     initSession()
   }, [])
 
-  // Handle scroll events in the messages container
+  // Handle scroll events
   useEffect(() => {
     const container = messagesContainerRef.current
     if (!container) return
 
     const handleScroll = () => {
-      lastScrollPositionRef.current = container.scrollTop
-      lastScrollHeightRef.current = container.scrollHeight
-      const isAtBottom = Math.abs(container.scrollHeight - container.scrollTop - container.clientHeight) < 50
-      isUserScrollingRef.current = !isAtBottom
-      setShowScrollButton(!isAtBottom && streamingContent)
+      const scrollHeight = container.scrollHeight
+      const scrollTop = container.scrollTop
+      const clientHeight = container.clientHeight
+      const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 50
+  
     }
 
     container.addEventListener("scroll", handleScroll)
     return () => container.removeEventListener("scroll", handleScroll)
-  }, [streamingContent])
+  }, [])
 
-  // Effect to preserve scroll position when new content is added
+  // Effect to scroll to bottom when new content arrives
   useEffect(() => {
-    const container = messagesContainerRef.current
-    if (!container || !isUserScrollingRef.current) return
 
-    if (streamingContent && isUserScrollingRef.current) {
-      const heightDifference = container.scrollHeight - lastScrollHeightRef.current
-      if (heightDifference > 0) {
-        container.scrollTop = lastScrollPositionRef.current
-      }
-      lastScrollHeightRef.current = container.scrollHeight
-    }
-  }, [streamingContent])
+    if (!isUserScrollingRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    } 
+  }, [messages, streamingContent])
 
   // Effect to set up event listeners
   useEffect(() => {
     const handleMessageChunk = (data) => {
       if (data.session_id === SESSION_ID) {
-        setStreamingContent((prev) => {
-          if (messagesContainerRef.current && isUserScrollingRef.current) {
-            lastScrollPositionRef.current = messagesContainerRef.current.scrollTop
-            lastScrollHeightRef.current = messagesContainerRef.current.scrollHeight
-          }
-          return prev + (data.chunk || "")
-        })
+        console.log('Received message chunk')
+        setStreamingContent((prev) => prev + (data.chunk || ""))
       }
     }
 
     const handleMessageComplete = (data) => {
       if (data.session_id === SESSION_ID) {
         if (streamingContent) {
-          if (messagesContainerRef.current && isUserScrollingRef.current) {
-            lastScrollPositionRef.current = messagesContainerRef.current.scrollTop
-            lastScrollHeightRef.current = messagesContainerRef.current.scrollHeight
-          }
           setMessages((prev) => [...prev, { role: "assistant", content: streamingContent }])
         }
         setStreamingContent("")
         setIsLoading(false)
-        setShowScrollButton(false)
       }
     }
 
@@ -146,13 +126,6 @@ const ChatInterface = () => {
     }
   }, [streamingContent])
 
-  // Effect to scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (!isUserScrollingRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-    }
-  }, [messages])
-
   const handleSendMessage = async (e) => {
     e?.preventDefault()
     if (!input.trim() || isLoading) return
@@ -161,8 +134,8 @@ const ChatInterface = () => {
     setInput("")
     setIsLoading(true)
     setMessages((prev) => [...prev, { role: "user", content: userMessage }])
+    
     isUserScrollingRef.current = false
-    setShowScrollButton(false)
 
     try {
       await api.sendMessage(userMessage)
@@ -171,12 +144,6 @@ const ChatInterface = () => {
       setIsLoading(false)
       setMessages((prev) => [...prev, { role: "error", content: "Failed to send message. Please try again." }])
     }
-  }
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-    isUserScrollingRef.current = false
-    setShowScrollButton(false)
   }
 
   const messageStyles = {
@@ -328,6 +295,7 @@ const ChatInterface = () => {
               overflowY: "auto",
               position: "relative",
               backgroundColor: "#1e1e1e",
+              scrollBehavior: "smooth",
             }}
           >
             {messages.map(renderMessage)}
@@ -371,31 +339,6 @@ const ChatInterface = () => {
             )}
 
             <div ref={messagesEndRef} />
-
-            {showScrollButton && (
-              <Button
-                variant="contained"
-                onClick={scrollToBottom}
-                sx={{
-                  position: "absolute",
-                  bottom: 16,
-                  right: 16,
-                  zIndex: 10,
-                  minWidth: "auto",
-                  borderRadius: "50%",
-                  width: 36,
-                  height: 36,
-                  padding: 0,
-                  backgroundColor: "#404040",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-                  "&:hover": {
-                    backgroundColor: "#505050",
-                  },
-                }}
-              >
-                <KeyboardArrowDownIcon />
-              </Button>
-            )}
           </Box>
 
           <Box

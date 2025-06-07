@@ -1,12 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Box, Typography, Drawer, IconButton, AppBar, Toolbar, Divider, Button, ToggleButton, ToggleButtonGroup } from "@mui/material"
+import { Box, Typography, Drawer, AppBar, Toolbar, Button, ToggleButton, ToggleButtonGroup } from "@mui/material"
 import OpenInNewIcon from "@mui/icons-material/OpenInNew"
-import AutorenewIcon from "@mui/icons-material/Autorenew"
-import AspectRatioIcon from '@mui/icons-material/AspectRatio'
-import WebIcon from "@mui/icons-material/Web"
-import CloseIcon from "@mui/icons-material/Close"
 import CodeIcon from '@mui/icons-material/Code'
 import PreviewIcon from '@mui/icons-material/Preview'
 
@@ -16,8 +12,8 @@ import WebPageAdder from "./WebPageAdder"
 import CodeEditor from "./CodeEditor"
 import api from "../services/api"
 
-const drawerWidth = 400
-const chatWidth = 400
+const drawerWidth = 350
+const chatWidth = 500
 const previewUrl = "http://localhost:5173/"
 
 const Layout = () => {
