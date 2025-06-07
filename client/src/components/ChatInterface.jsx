@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { Button, TextField, Paper, Typography, Box, Divider, CircularProgress, IconButton } from "@mui/material"
 import SendIcon from "@mui/icons-material/Send"
 import api, { addEventListener, removeEventListener, SESSION_ID } from "../services/api"
+import DiffViewer from './DiffViewer'
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState([])
@@ -192,6 +193,8 @@ const ChatInterface = () => {
   const renderMessage = (message, index) => {
     const { role, content } = message
 
+    const hasDiff = role === "commit" && message.diff;
+
     return (
       <Box
         key={index}
@@ -200,6 +203,7 @@ const ChatInterface = () => {
           flexDirection: 'column',
           alignItems: role === 'user' ? 'flex-end' : 'flex-start',
           mb: 2,
+          width: '100%',
         }}
       >
         <Paper
@@ -208,6 +212,7 @@ const ChatInterface = () => {
             p: 2.5,
             ...messageStyles[role],
             boxShadow: 'none',
+            width: role === 'commit' ? '100%' : undefined,
           }}
         >
           <Typography
@@ -220,43 +225,39 @@ const ChatInterface = () => {
               fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
             }}
           >
-            {content}
+            {!hasDiff && content}
+            {role === "commit" && (
+              <>
+                <Typography component="span" sx={{ color: '#85e89d', fontWeight: 500 }}>Commit: </Typography>
+                <Typography component="span" sx={{ color: '#e0e0e0' }}>{message.hash}</Typography>
+                <br />
+                <Typography component="span" sx={{ color: '#85e89d', fontWeight: 500 }}>Message: </Typography>
+                <Typography component="span" sx={{ color: '#e0e0e0' }}>{message.message}</Typography>
+              </>
+            )}
           </Typography>
 
-          {role === "commit" && message.diff && (
+          {hasDiff && (
             <Box mt={1}>
+              <DiffViewer diff={message.diff} maxHeight="400px" />
               <Button
                 size="small"
                 variant="outlined"
-                color="primary"
                 onClick={() => api.undoCommit(message.hash)}
                 sx={{
+                  mt: 2,
                   textTransform: 'none',
                   fontSize: '0.8rem',
-                  borderColor: 'rgba(0,0,0,0.1)',
+                  borderColor: '#404040',
+                  color: '#e0e0e0',
                   '&:hover': {
-                    borderColor: 'rgba(0,0,0,0.2)',
-                    backgroundColor: 'rgba(0,0,0,0.02)',
+                    borderColor: '#606060',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
                   },
                 }}
               >
                 Revert Changes
               </Button>
-              <Typography
-                variant="body2"
-                component="pre"
-                sx={{
-                  mt: 1,
-                  p: 1,
-                  backgroundColor: 'rgba(0,0,0,0.02)',
-                  borderRadius: '4px',
-                  overflowX: 'auto',
-                  fontSize: '0.8rem',
-                  fontFamily: 'monospace',
-                }}
-              >
-                {message.diff}
-              </Typography>
             </Box>
           )}
         </Paper>
