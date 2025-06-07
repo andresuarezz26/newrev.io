@@ -1,5 +1,3 @@
-"use client"
-
 import { useState } from "react"
 import { Box, Typography, Drawer, AppBar, Toolbar, Button, ToggleButton, ToggleButtonGroup } from "@mui/material"
 import OpenInNewIcon from "@mui/icons-material/OpenInNew"

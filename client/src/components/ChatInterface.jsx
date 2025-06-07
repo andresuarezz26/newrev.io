@@ -1,5 +1,6 @@
+
 import { useState, useEffect, useRef } from "react"
-import { Button, TextField, Paper, Typography, Box, Divider, CircularProgress, IconButton } from "@mui/material"
+import { Button, TextField, Paper, Typography, Box, CircularProgress, IconButton } from "@mui/material"
 import SendIcon from "@mui/icons-material/Send"
 import api, { addEventListener, removeEventListener, SESSION_ID } from "../services/api"
 import DiffViewer from './DiffViewer'
