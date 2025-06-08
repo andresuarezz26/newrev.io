@@ -2,6 +2,9 @@
 import { useState, useEffect, useRef } from "react"
 import { Button, TextField, Paper, Typography, Box, CircularProgress, IconButton } from "@mui/material"
 import SendIcon from "@mui/icons-material/Send"
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import api, { addEventListener, removeEventListener, SESSION_ID } from "../services/api"
 import DiffViewer from './DiffViewer'
 
@@ -14,6 +17,48 @@ const ChatInterface = () => {
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const isUserScrollingRef = useRef(false)
+
+  const parseStreamingContent = (content) => {
+    // Regex to match markdown code blocks (```language code ```)
+    const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    // Find all code blocks
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      // Add text before the code block
+      if (match.index > lastIndex) {
+        parts.push({
+          type: 'text',
+          content: content.substring(lastIndex, match.index)
+        });
+      }
+
+      // Add the code block
+      parts.push({
+        type: 'code',
+        language: match[1] || 'javascript', // Default to javascript if no language specified
+        content: match[2]
+      });
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Add any remaining text
+    if (lastIndex < content.length) {
+      parts.push({
+        type: 'text',
+        content: content.substring(lastIndex)
+      });
+    }
+
+    return parts;
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+  };
 
   // Effect to initialize the session
   useEffect(() => {
@@ -224,7 +269,58 @@ const ChatInterface = () => {
               fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
             }}
           >
-            {!hasDiff && content}
+            {!hasDiff && role !== 'assistant' && content}
+            {role === 'assistant' && parseStreamingContent(content).map((part, idx) => (
+              part.type === 'text' ? (
+                <span key={idx}>{part.content}</span>
+              ) : (
+                <Box key={idx} sx={{ my: 2, borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
+                  <Box 
+                    sx={{ 
+                      position: 'absolute', 
+                      top: 5, 
+                      right: 5, 
+                      zIndex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1
+                    }}
+                  >
+                    {part.language && (
+                      <Typography variant="caption" sx={{ color: '#aaa', backgroundColor: 'rgba(0,0,0,0.3)', px: 1, py: 0.5, borderRadius: 1 }}>
+                        {part.language}
+                      </Typography>
+                    )}
+                    <IconButton 
+                      size="small" 
+                      onClick={() => copyToClipboard(part.content)}
+                      sx={{ 
+                        color: '#aaa', 
+                        backgroundColor: 'rgba(0,0,0,0.3)',
+                        '&:hover': { 
+                          backgroundColor: 'rgba(0,0,0,0.5)',
+                          color: '#fff'
+                        }
+                      }}
+                    >
+                      <ContentCopyIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                  <SyntaxHighlighter
+                    language={part.language}
+                    style={vscDarkPlus}
+                    showLineNumbers={part.content.split('\n').length > 5}
+                    customStyle={{
+                      margin: 0,
+                      borderRadius: '4px',
+                      fontSize: '13px',
+                    }}
+                  >
+                    {part.content}
+                  </SyntaxHighlighter>
+                </Box>
+              )
+            ))}
             {role === "commit" && (
               <>
                 <Typography component="span" sx={{ color: '#85e89d', fontWeight: 500 }}>Commit: </Typography>
@@ -332,7 +428,57 @@ const ChatInterface = () => {
                       fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
                     }}
                   >
-                    {streamingContent}
+                    {parseStreamingContent(streamingContent).map((part, index) => (
+                      part.type === 'text' ? (
+                        <span key={index}>{part.content}</span>
+                      ) : (
+                        <Box key={index} sx={{ my: 2, borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
+                          <Box 
+                            sx={{ 
+                              position: 'absolute', 
+                              top: 5, 
+                              right: 5, 
+                              zIndex: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1
+                            }}
+                          >
+                            {part.language && (
+                              <Typography variant="caption" sx={{ color: '#aaa', backgroundColor: 'rgba(0,0,0,0.3)', px: 1, py: 0.5, borderRadius: 1 }}>
+                                {part.language}
+                              </Typography>
+                            )}
+                            <IconButton 
+                              size="small" 
+                              onClick={() => copyToClipboard(part.content)}
+                              sx={{ 
+                                color: '#aaa', 
+                                backgroundColor: 'rgba(0,0,0,0.3)',
+                                '&:hover': { 
+                                  backgroundColor: 'rgba(0,0,0,0.5)',
+                                  color: '#fff'
+                                }
+                              }}
+                            >
+                              <ContentCopyIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                          <SyntaxHighlighter
+                            language={part.language}
+                            style={vscDarkPlus}
+                            showLineNumbers={part.content.split('\n').length > 5}
+                            customStyle={{
+                              margin: 0,
+                              borderRadius: '4px',
+                              fontSize: '13px',
+                            }}
+                          >
+                            {part.content}
+                          </SyntaxHighlighter>
+                        </Box>
+                      )
+                    ))}
                   </Typography>
                 </Paper>
               </Box>
