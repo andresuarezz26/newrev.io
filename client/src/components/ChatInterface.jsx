@@ -515,36 +515,12 @@ const ChatInterface = () => {
               p: 2,
               display: "flex",
               alignItems: "center",
+              justifyContent: "flex-end",
               gap: 2,
               borderBottom: "1px solid #404040",
               backgroundColor: "#1e1e1e",
             }}
           >
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel sx={{ color: "#e0e0e0" }}>Mode</InputLabel>
-              <Select
-                value={mode}
-                onChange={(e) => handleModeChange(e.target.value)}
-                label="Mode"
-                sx={{
-                  color: "#e0e0e0",
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#404040",
-                  },
-                  "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#505050",
-                  },
-                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#606060",
-                  },
-                }}
-              >
-                <MenuItem value="code">Code</MenuItem>
-                <MenuItem value="architect">Architect</MenuItem>
-                <MenuItem value="ask">Ask</MenuItem>
-              </Select>
-            </FormControl>
-
             <Tooltip title="Settings">
               <IconButton
                 onClick={() => setShowSettings(!showSettings)}
@@ -863,6 +839,30 @@ const ChatInterface = () => {
               gap: 1,
             }}
           >
+            <FormControl size="small" sx={{ minWidth: 120, mr: 1 }}>
+              <InputLabel sx={{ color: "#e0e0e0" }}>Mode</InputLabel>
+              <Select
+                value={mode}
+                onChange={(e) => handleModeChange(e.target.value)}
+                label="Mode"
+                sx={{
+                  color: "#e0e0e0",
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#404040",
+                  },
+                  "&:hover .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#505050",
+                  },
+                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#606060",
+                  },
+                }}
+              >
+                <MenuItem value="code">Code</MenuItem>
+                <MenuItem value="architect">Architect</MenuItem>
+                <MenuItem value="ask">Ask</MenuItem>
+              </Select>
+            </FormControl>
             <TextField
               fullWidth
               multiline
