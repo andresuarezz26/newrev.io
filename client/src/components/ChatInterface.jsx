@@ -1,8 +1,22 @@
-
 import { useState, useEffect, useRef } from "react"
-import { Button, TextField, Paper, Typography, Box, CircularProgress, IconButton } from "@mui/material"
+import { 
+  Button, 
+  TextField, 
+  Paper, 
+  Typography, 
+  Box, 
+  CircularProgress, 
+  IconButton,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Tooltip,
+  Divider
+} from "@mui/material"
 import SendIcon from "@mui/icons-material/Send"
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import SettingsIcon from '@mui/icons-material/Settings'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import api, { addEventListener, removeEventListener, SESSION_ID } from "../services/api"
@@ -14,6 +28,13 @@ const ChatInterface = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [isInitializing, setIsInitializing] = useState(true)
   const [streamingContent, setStreamingContent] = useState("")
+  const [editorContent, setEditorContent] = useState("")
+  const [reflectionContent, setReflectionContent] = useState("")
+  const [showSettings, setShowSettings] = useState(false)
+  const [mode, setMode] = useState('code')
+  const [architectModel, setArchitectModel] = useState('')
+  const [reasoningEffort, setReasoningEffort] = useState('')
+  const [thinkingTokens, setThinkingTokens] = useState('')
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const isUserScrollingRef = useRef(false)
@@ -64,9 +85,17 @@ const ChatInterface = () => {
   useEffect(() => {
     const initSession = async () => {
       try {
-        const response = await api.initSession()
+        const response = await api.initSession({
+          mode,
+          architectModel,
+          reasoningEffort,
+          thinkingTokens
+        })
         if (response.status === "success") {
           setMessages(response.messages || [])
+          setMode(response.mode || 'code')
+          setReasoningEffort(response.reasoning_effort || '')
+          setThinkingTokens(response.thinking_tokens || '')
         }
         setIsInitializing(false)
       } catch (error) {
@@ -122,6 +151,43 @@ const ChatInterface = () => {
       }
     }
 
+    const handleEditorChunk = (data) => {
+      if (data.session_id === SESSION_ID) {
+        console.log('Received editor chunk')
+        setEditorContent((prev) => prev + (data.chunk || ""))
+      }
+    }
+
+    const handleEditorComplete = (data) => {
+      if (data.session_id === SESSION_ID) {
+        if (editorContent) {
+          setMessages((prev) => [...prev, { role: "editor", content: editorContent }])
+        }
+        setEditorContent("")
+      }
+    }
+
+    const handleReflectionStart = (data) => {
+      if (data.session_id === SESSION_ID) {
+        setMessages((prev) => [...prev, { role: "info", content: "Reflecting on the changes..." }])
+      }
+    }
+
+    const handleReflectionChunk = (data) => {
+      if (data.session_id === SESSION_ID) {
+        setReflectionContent((prev) => prev + (data.chunk || ""))
+      }
+    }
+
+    const handleReflectionComplete = (data) => {
+      if (data.session_id === SESSION_ID) {
+        if (reflectionContent) {
+          setMessages((prev) => [...prev, { role: "reflection", content: reflectionContent }])
+        }
+        setReflectionContent("")
+      }
+    }
+
     const handleFilesEdited = (data) => {
       if (data.session_id === SESSION_ID) {
         setMessages((prev) => [
@@ -158,6 +224,11 @@ const ChatInterface = () => {
 
     addEventListener("message_chunk", handleMessageChunk)
     addEventListener("message_complete", handleMessageComplete)
+    addEventListener("editor_chunk", handleEditorChunk)
+    addEventListener("editor_complete", handleEditorComplete)
+    addEventListener("reflection_start", handleReflectionStart)
+    addEventListener("reflection_chunk", handleReflectionChunk)
+    addEventListener("reflection_complete", handleReflectionComplete)
     addEventListener("files_edited", handleFilesEdited)
     addEventListener("commit", handleCommit)
     addEventListener("error", handleError)
@@ -165,11 +236,16 @@ const ChatInterface = () => {
     return () => {
       removeEventListener("message_chunk", handleMessageChunk)
       removeEventListener("message_complete", handleMessageComplete)
+      removeEventListener("editor_chunk", handleEditorChunk)
+      removeEventListener("editor_complete", handleEditorComplete)
+      removeEventListener("reflection_start", handleReflectionStart)
+      removeEventListener("reflection_chunk", handleReflectionChunk)
+      removeEventListener("reflection_complete", handleReflectionComplete)
       removeEventListener("files_edited", handleFilesEdited)
       removeEventListener("commit", handleCommit)
       removeEventListener("error", handleError)
     }
-  }, [streamingContent])
+  }, [streamingContent, editorContent, reflectionContent])
 
   const handleSendMessage = async (e) => {
     e?.preventDefault()
@@ -183,11 +259,46 @@ const ChatInterface = () => {
     isUserScrollingRef.current = false
 
     try {
-      await api.sendMessage(userMessage)
+      // Format thinking tokens as a number
+      const formattedThinkingTokens = thinkingTokens ? parseFloat(thinkingTokens) : null;
+      
+      await api.sendMessage(userMessage, {
+        mode,
+        architectModel,
+        reasoningEffort,
+        thinkingTokens: formattedThinkingTokens
+      })
     } catch (error) {
       console.error("Error sending message:", error)
       setIsLoading(false)
       setMessages((prev) => [...prev, { role: "error", content: "Failed to send message. Please try again." }])
+    }
+  }
+
+  const handleModeChange = async (newMode) => {
+    try {
+      // Format thinking tokens as a number
+      const formattedThinkingTokens = thinkingTokens ? parseFloat(thinkingTokens) : null;
+      
+      const response = await api.setMode({
+        mode: newMode,
+        architectModel,
+        reasoningEffort,
+        thinkingTokens: formattedThinkingTokens
+      })
+      if (response.status === "success") {
+        setMode(newMode)
+        setMessages((prev) => [...prev, { 
+          role: "info", 
+          content: `Switched to ${newMode} mode` 
+        }])
+      }
+    } catch (error) {
+      console.error("Error changing mode:", error)
+      setMessages((prev) => [...prev, { 
+        role: "error", 
+        content: "Failed to change mode. Please try again." 
+      }])
     }
   }
 
@@ -231,6 +342,22 @@ const ChatInterface = () => {
       margin: '8px auto',
       maxWidth: '90%',
       border: '1px solid #2d3748',
+    },
+    editor: {
+      backgroundColor: '#1a365d',
+      color: '#90cdf4',
+      borderRadius: '8px',
+      marginRight: 'auto',
+      maxWidth: '80%',
+      border: '1px solid #2d5a87',
+    },
+    reflection: {
+      backgroundColor: '#2d3748',
+      color: '#a0aec0',
+      borderRadius: '8px',
+      marginRight: 'auto',
+      maxWidth: '80%',
+      border: '1px solid #4a5568',
     },
   }
 
@@ -384,6 +511,141 @@ const ChatInterface = () => {
       ) : (
         <>
           <Box
+            sx={{
+              p: 2,
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+              borderBottom: "1px solid #404040",
+              backgroundColor: "#1e1e1e",
+            }}
+          >
+            <FormControl size="small" sx={{ minWidth: 120 }}>
+              <InputLabel sx={{ color: "#e0e0e0" }}>Mode</InputLabel>
+              <Select
+                value={mode}
+                onChange={(e) => handleModeChange(e.target.value)}
+                label="Mode"
+                sx={{
+                  color: "#e0e0e0",
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#404040",
+                  },
+                  "&:hover .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#505050",
+                  },
+                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#606060",
+                  },
+                }}
+              >
+                <MenuItem value="code">Code</MenuItem>
+                <MenuItem value="architect">Architect</MenuItem>
+                <MenuItem value="ask">Ask</MenuItem>
+              </Select>
+            </FormControl>
+
+            <Tooltip title="Settings">
+              <IconButton
+                onClick={() => setShowSettings(!showSettings)}
+                sx={{
+                  color: "#e0e0e0",
+                  "&:hover": {
+                    backgroundColor: "rgba(255, 255, 255, 0.1)",
+                  },
+                }}
+              >
+                <SettingsIcon />
+              </IconButton>
+            </Tooltip>
+
+            {showSettings && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  top: 60,
+                  right: 20,
+                  backgroundColor: "#2d2d2d",
+                  p: 2,
+                  borderRadius: 1,
+                  boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+                  zIndex: 1000,
+                }}
+              >
+                <Typography variant="subtitle2" sx={{ color: "#e0e0e0", mb: 1 }}>
+                  Model Settings
+                </Typography>
+                <FormControl fullWidth size="small" sx={{ mb: 1 }}>
+                  <InputLabel sx={{ color: "#e0e0e0" }}>Architect Model</InputLabel>
+                  <Select
+                    value={architectModel}
+                    onChange={(e) => setArchitectModel(e.target.value)}
+                    label="Architect Model"
+                    sx={{
+                      color: "#e0e0e0",
+                      "& .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "#404040",
+                      },
+                    }}
+                  >
+                    <MenuItem value="gpt-4">GPT-4</MenuItem>
+                    <MenuItem value="gpt-3.5-turbo">GPT-3.5 Turbo</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth size="small" sx={{ mb: 1 }}>
+                  <InputLabel sx={{ color: "#e0e0e0" }}>Reasoning Effort</InputLabel>
+                  <Select
+                    value={reasoningEffort}
+                    onChange={(e) => setReasoningEffort(e.target.value)}
+                    label="Reasoning Effort"
+                    sx={{
+                      color: "#e0e0e0",
+                      "& .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "#404040",
+                      },
+                    }}
+                  >
+                    <MenuItem value="high">High</MenuItem>
+                    <MenuItem value="medium">Medium</MenuItem>
+                    <MenuItem value="low">Low</MenuItem>
+                    <MenuItem value="none">None</MenuItem>
+                  </Select>
+                </FormControl>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Thinking Tokens"
+                  type="number"
+                  inputProps={{ 
+                    step: "0.1",
+                    min: "0"
+                  }}
+                  value={thinkingTokens}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Only allow valid numeric input
+                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                      setThinkingTokens(value);
+                    }
+                  }}
+                  sx={{
+                    mb: 1,
+                    "& .MuiOutlinedInput-root": {
+                      color: "#e0e0e0",
+                      "& fieldset": {
+                        borderColor: "#404040",
+                      },
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "#e0e0e0",
+                    },
+                  }}
+                />
+              </Box>
+            )}
+          </Box>
+
+          <Box
             ref={messagesContainerRef}
             sx={{
               flex: 1,
@@ -464,6 +726,108 @@ const ChatInterface = () => {
                               <ContentCopyIcon fontSize="small" />
                             </IconButton>
                           </Box>
+                          <SyntaxHighlighter
+                            language={part.language}
+                            style={vscDarkPlus}
+                            showLineNumbers={part.content.split('\n').length > 5}
+                            customStyle={{
+                              margin: 0,
+                              borderRadius: '4px',
+                              fontSize: '13px',
+                            }}
+                          >
+                            {part.content}
+                          </SyntaxHighlighter>
+                        </Box>
+                      )
+                    ))}
+                  </Typography>
+                </Paper>
+              </Box>
+            )}
+
+            {editorContent && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  mb: 2,
+                }}
+              >
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+                    ...messageStyles.editor,
+                    boxShadow: 'none',
+                  }}
+                >
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      fontSize: '14px',
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {parseStreamingContent(editorContent).map((part, index) => (
+                      part.type === 'text' ? (
+                        <span key={index}>{part.content}</span>
+                      ) : (
+                        <Box key={index} sx={{ my: 2, borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
+                          <SyntaxHighlighter
+                            language={part.language}
+                            style={vscDarkPlus}
+                            showLineNumbers={part.content.split('\n').length > 5}
+                            customStyle={{
+                              margin: 0,
+                              borderRadius: '4px',
+                              fontSize: '13px',
+                            }}
+                          >
+                            {part.content}
+                          </SyntaxHighlighter>
+                        </Box>
+                      )
+                    ))}
+                  </Typography>
+                </Paper>
+              </Box>
+            )}
+
+            {reflectionContent && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  mb: 2,
+                }}
+              >
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+                    ...messageStyles.reflection,
+                    boxShadow: 'none',
+                  }}
+                >
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      fontSize: '14px',
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {parseStreamingContent(reflectionContent).map((part, index) => (
+                      part.type === 'text' ? (
+                        <span key={index}>{part.content}</span>
+                      ) : (
+                        <Box key={index} sx={{ my: 2, borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
                           <SyntaxHighlighter
                             language={part.language}
                             style={vscDarkPlus}
