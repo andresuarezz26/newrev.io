@@ -288,10 +288,10 @@ const ChatInterface = () => {
       })
       if (response.status === "success") {
         setMode(newMode)
-        setMessages((prev) => [...prev, { 
+        /**setMessages((prev) => [...prev, { 
           role: "info", 
           content: `Switched to ${newMode} mode` 
-        }])
+        }])*/
       }
     } catch (error) {
       console.error("Error changing mode:", error)

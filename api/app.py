@@ -686,6 +686,52 @@ def run_command():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/set_mode', methods=['POST'])
+def set_mode():
+    """Set the mode for the current session"""
+    logger = logging.getLogger(__name__)
+    logger.debug("set_mode endpoint called")
+    
+    try:
+        data = request.json
+        session_id = data.get('session_id')
+        mode = data.get('mode')
+        architect_model = data.get('architect_model')
+        reasoning_effort = data.get('reasoning_effort')
+        thinking_tokens = data.get('thinking_tokens')
+        
+        logger.debug(f"Mode switch request - Session ID: {session_id}, Mode: {mode}")
+        
+        if not session_id:
+            logger.error("No session ID provided")
+            return jsonify({'status': 'error', 'message': 'Session ID is required'}), 400
+            
+        if not mode:
+            logger.error("No mode provided")
+            return jsonify({'status': 'error', 'message': 'Mode is required'}), 400
+        
+        # Get session
+        session = get_or_create_session(session_id)
+        if not session:
+            logger.error(f"No session found for ID: {session_id}")
+            return jsonify({'status': 'error', 'message': 'Session not found'}), 404
+        
+        # TODO: Implement mode switching logic here
+        
+        return jsonify({
+            'status': 'success',
+            'mode': mode,
+            'message': f'Successfully switched to {mode} mode'
+        })
+            
+    except Exception as e:
+        logger.error(f"Unexpected error in set_mode: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Unexpected error: {str(e)}'
+        }), 500
+
 if __name__ == '__main__':
     print("=== Starting Aider API Server ===")
     print(f"Current working directory: {os.getcwd()}")
