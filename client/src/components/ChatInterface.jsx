@@ -72,7 +72,7 @@ function CursorModeSelector({ value, onChange }) {
             sx={{
               transform: open ? "rotate(180deg)" : "rotate(0deg)",
               transition: "transform 0.2s ease",
-              fontSize: "small",
+              fontSize: "x-small",
             }}
           />
         }
@@ -80,31 +80,37 @@ function CursorModeSelector({ value, onChange }) {
           backgroundColor: "#2a2a2a",
           color: "white",
           border: "1px solid #404040",
-          borderRadius: "8px",
+          borderRadius: "6px",
           textTransform: "none",
           minWidth: 'auto',
-          height: '36px',
+          height: '28px',
           justifyContent: "space-between",
           px: 1,
-          py: 0.5,
+          py: 0.25,
           "&:hover": {
             backgroundColor: "#333333",
           },
           "& .MuiButton-startIcon": {
             marginRight: 0.5,
+            "& .MuiSvgIcon-root": {
+              fontSize: "0.75rem",
+            },
           },
           "& .MuiButton-endIcon": {
             marginLeft: 0.5,
+            "& .MuiSvgIcon-root": {
+              fontSize: "0.875rem",
+            },
           },
         }}
       >
-        <Typography variant="caption" sx={{ color: "white", fontSize: "12px" }}>
+        <Typography variant="caption" sx={{ color: "white", fontSize: "10px" }}>
           {selectedOption.label}
         </Typography>
       </Button>
 
       {/* Dropdown Menu */}
-      <Popper open={open} anchorEl={anchorRef.current} placement="bottom-start" sx={{ zIndex: 1300 }}>
+      <Popper open={open} anchorEl={anchorRef.current} placement="top-start" sx={{ zIndex: 1300 }}>
         <ClickAwayListener onClickAway={handleClose}>
           <Paper
             sx={{
@@ -112,7 +118,7 @@ function CursorModeSelector({ value, onChange }) {
               border: "1px solid #404040",
               borderRadius: "8px",
               mt: 0.5,
-              minWidth: 256,
+              minWidth: 200,
               boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
             }}
           >
@@ -163,8 +169,8 @@ function CursorModeSelector({ value, onChange }) {
                   />
                   {option.value === value && (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                      <Edit sx={{ fontSize: 12, color: "white" }} />
-                      <Check sx={{ fontSize: 12, color: "white" }} />
+                      <Edit sx={{ fontSize: 10, color: "white" }} />
+                      <Check sx={{ fontSize: 10, color: "white" }} />
                     </Box>
                   )}
                 </MenuItem>
@@ -184,11 +190,11 @@ function CursorModeSelector({ value, onChange }) {
               }}
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <AllInclusive sx={{ fontSize: 12, color: "#888888" }} />
-                <Typography variant="caption" sx={{ color: "#888888" }}>
+                <AllInclusive sx={{ fontSize: 10, color: "#888888" }} />
+                <Typography variant="caption" sx={{ color: "#888888", fontSize: "10px" }}>
                   Current Mode
                 </Typography>
-                <ExpandMore sx={{ fontSize: 12, color: "#888888" }} />
+                <ExpandMore sx={{ fontSize: 10, color: "#888888" }} />
               </Box>
               <Typography variant="caption" sx={{ color: "#888888" }}>
                 {selectedOption.label}
@@ -890,88 +896,80 @@ const ChatInterface = () => {
             sx={{
               p: 2,
               display: "flex",
-              alignItems: "flex-end",
+              flexDirection: "column",
               borderTop: "1px solid #404040",
               backgroundColor: "#1e1e1e",
               gap: 1,
             }}
           >
-            <TextField
-              fullWidth
-              multiline
-              minRows={1}
-              maxRows={6}
-              variant="outlined"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your message here..."
-              disabled={isLoading}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSendMessage()
-                }
-              }}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "8px",
-                  backgroundColor: "#2d2d2d",
-                  color: "#ffffff",
-                  paddingLeft: "0px",
-                  paddingRight: "12px",
-                  transition: "all 0.2s ease",
-                  "& fieldset": {
-                    borderColor: "#404040",
+            <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1 }}>
+              <TextField
+                fullWidth
+                multiline
+                minRows={1}
+                maxRows={6}
+                variant="outlined"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Type your message here..."
+                disabled={isLoading}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSendMessage()
+                  }
+                }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: "8px",
+                    backgroundColor: "#2d2d2d",
+                    color: "#ffffff",
+                    transition: "all 0.2s ease",
+                    "& fieldset": {
+                      borderColor: "#404040",
+                    },
+                    "&:hover fieldset": {
+                      borderColor: "#505050",
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#606060",
+                    },
                   },
-                  "&:hover fieldset": {
-                    borderColor: "#505050",
+                  "& .MuiInputBase-input": {
+                    padding: "12px 16px",
+                    fontSize: "14px",
+                    color: "#ffffff",
+                    "&::placeholder": {
+                      color: "#888888",
+                      opacity: 1,
+                    },
                   },
-                  "&.Mui-focused fieldset": {
-                    borderColor: "#606060",
+                }}
+              />
+              <IconButton
+                type="submit"
+                disabled={isLoading || !input.trim()}
+                sx={{
+                  backgroundColor: "#007acc",
+                  color: "#fff",
+                  width: 40,
+                  height: 40,
+                  borderRadius: "6px",
+                  "&:hover": {
+                    backgroundColor: "#0066aa",
                   },
-                },
-                "& .MuiInputBase-input": {
-                  padding: "12px 16px 12px 0px",
-                  fontSize: "14px",
-                  color: "#ffffff",
-                  "&::placeholder": {
-                    color: "#888888",
-                    opacity: 1,
+                  "&.Mui-disabled": {
+                    backgroundColor: "#404040",
+                    color: "#666666",
                   },
-                },
-                "& .MuiInputBase-root": {
-                  paddingLeft: "0px",
-                },
-              }}
-              InputProps={{
-                startAdornment: (
-                  <Box sx={{ ml: 1, mr: 0.5 }}>
-                    <CursorModeSelector value={mode} onChange={handleModeChange} />
-                  </Box>
-                ),
-              }}
-            />
-            <IconButton
-              type="submit"
-              disabled={isLoading || !input.trim()}
-              sx={{
-                backgroundColor: "#007acc",
-                color: "#fff",
-                width: 40,
-                height: 40,
-                alignSelf: "flex-end",
-                borderRadius: "6px",
-                "&:hover": {
-                  backgroundColor: "#0066aa",
-                },
-                "&.Mui-disabled": {
-                  backgroundColor: "#404040",
-                  color: "#666666",
-                },
-              }}
-            >
-              {isLoading ? <CircularProgress size={20} sx={{ color: "#fff" }} /> : <SendIcon fontSize="small" />}
-            </IconButton>
+                }}
+              >
+                {isLoading ? <CircularProgress size={20} sx={{ color: "#fff" }} /> : <SendIcon fontSize="small" />}
+              </IconButton>
+            </Box>
+            <Box sx={{ display: "flex", justifyContent: "flex-start", mt: 1 }}>
+              <CursorModeSelector value={mode} onChange={handleModeChange} />
+            </Box>
           </Box>
         </>
       )}
