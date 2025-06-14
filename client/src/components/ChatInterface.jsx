@@ -118,33 +118,34 @@ function CursorModeSelector({ value, onChange }) {
               border: "1px solid #404040",
               borderRadius: "8px",
               mt: 0.5,
-              minWidth: 200,
+              minWidth: 160,
               boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
             }}
           >
             {/* Header */}
             <Box
               sx={{
-                px: 2,
-                py: 1,
+                px: 1.5,
+                py: 0.5,
                 borderBottom: "1px solid #404040",
               }}
             >
-              <Typography variant="caption" sx={{ color: "#888888" }}>
+              <Typography variant="caption" sx={{ color: "#888888", fontSize: "0.7rem" }}>
                 Select Mode
               </Typography>
             </Box>
 
             {/* Menu Items */}
-            <MenuList sx={{ py: 0.5 }}>
+            <MenuList sx={{ py: 0.25 }}>
               {modeOptions.map((option) => (
                 <MenuItem
                   key={option.value}
                   onClick={() => handleSelect(option.value)}
                   selected={option.value === value}
                   sx={{
-                    px: 2,
-                    py: 1,
+                    px: 1.5,
+                    py: 0.5,
+                    minHeight: '28px',
                     backgroundColor: option.value === value ? "#0066cc" : "transparent",
                     "&:hover": {
                       backgroundColor: option.value === value ? "#0066cc" : "#333333",
@@ -157,20 +158,23 @@ function CursorModeSelector({ value, onChange }) {
                     },
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 32, color: "white" }}>{option.icon}</ListItemIcon>
+                  <ListItemIcon sx={{ minWidth: 24, color: "white" }}>
+                    {React.cloneElement(option.icon, { fontSize: 'small', sx: { fontSize: '0.75rem' } })}
+                  </ListItemIcon>
                   <ListItemText
                     primary={option.label}
                     sx={{
+                      margin: 0,
                       "& .MuiListItemText-primary": {
                         color: "white",
-                        fontSize: "0.875rem",
+                        fontSize: "0.75rem",
                       },
                     }}
                   />
                   {option.value === value && (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                      <Edit sx={{ fontSize: 10, color: "white" }} />
-                      <Check sx={{ fontSize: 10, color: "white" }} />
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
+                      <Edit sx={{ fontSize: 8, color: "white" }} />
+                      <Check sx={{ fontSize: 8, color: "white" }} />
                     </Box>
                   )}
                 </MenuItem>
@@ -182,21 +186,21 @@ function CursorModeSelector({ value, onChange }) {
             {/* Footer */}
             <Box
               sx={{
-                px: 2,
-                py: 1,
+                px: 1.5,
+                py: 0.5,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
               }}
             >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <AllInclusive sx={{ fontSize: 10, color: "#888888" }} />
-                <Typography variant="caption" sx={{ color: "#888888", fontSize: "10px" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <AllInclusive sx={{ fontSize: 8, color: "#888888" }} />
+                <Typography variant="caption" sx={{ color: "#888888", fontSize: "0.65rem" }}>
                   Current Mode
                 </Typography>
-                <ExpandMore sx={{ fontSize: 10, color: "#888888" }} />
+                <ExpandMore sx={{ fontSize: 8, color: "#888888" }} />
               </Box>
-              <Typography variant="caption" sx={{ color: "#888888" }}>
+              <Typography variant="caption" sx={{ color: "#888888", fontSize: "0.7rem" }}>
                 {selectedOption.label}
               </Typography>
             </Box>
