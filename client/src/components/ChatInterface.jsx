@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback, memo, useMemo } from "react"
 import { 
   Button, 
   TextField, 
@@ -207,6 +207,332 @@ function CursorModeSelector({ value, onChange }) {
   )
 }
 
+// Utility function for parsing streaming content
+const parseStreamingContent = (content) => {
+  // Regex to match markdown code blocks (```language code ```)
+  const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  // Find all code blocks
+  while ((match = codeBlockRegex.exec(content)) !== null) {
+    // Add text before the code block
+    if (match.index > lastIndex) {
+      parts.push({
+        type: 'text',
+        content: content.substring(lastIndex, match.index)
+      });
+    }
+
+    // Add the code block
+    parts.push({
+      type: 'code',
+      language: match[1] || 'javascript', // Default to javascript if no language specified
+      content: match[2]
+    });
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add any remaining text
+  if (lastIndex < content.length) {
+    parts.push({
+      type: 'text',
+      content: content.substring(lastIndex)
+    });
+  }
+
+  return parts;
+};
+
+// Message styles object
+const messageStyles = {
+  user: {
+    backgroundColor: '#2d2d2d',
+    color: '#ffffff',
+    borderRadius: '8px',
+    marginLeft: 'auto',
+    maxWidth: '80%',
+    border: '1px solid #404040',
+  },
+  assistant: {
+    backgroundColor: '#262626',
+    color: '#e0e0e0',
+    borderRadius: '8px',
+    marginRight: 'auto',
+    maxWidth: '80%',
+    border: '1px solid #404040',
+  },
+  info: {
+    backgroundColor: '#1a365d',
+    color: '#90cdf4',
+    borderRadius: '8px',
+    margin: '8px auto',
+    maxWidth: '90%',
+    border: '1px solid #2d5a87',
+  },
+  error: {
+    backgroundColor: '#742a2a',
+    color: '#feb2b2',
+    borderRadius: '8px',
+    margin: '8px auto',
+    maxWidth: '90%',
+    border: '1px solid #9b2c2c',
+  },
+  commit: {
+    backgroundColor: '#1a202c',
+    color: '#68d391',
+    borderRadius: '8px',
+    margin: '8px auto',
+    maxWidth: '90%',
+    border: '1px solid #2d3748',
+  },
+  editor: {
+    backgroundColor: '#1a365d',
+    color: '#90cdf4',
+    borderRadius: '8px',
+    marginRight: 'auto',
+    maxWidth: '80%',
+    border: '1px solid #2d5a87',
+  },
+  reflection: {
+    backgroundColor: '#2d3748',
+    color: '#a0aec0',
+    borderRadius: '8px',
+    marginRight: 'auto',
+    maxWidth: '80%',
+    border: '1px solid #4a5568',
+  },
+};
+
+// Memoized syntax highlighter component
+const MemoizedSyntaxHighlighter = memo(({ language, content, showLineNumbers = false }) => (
+  <SyntaxHighlighter
+    language={language}
+    style={vscDarkPlus}
+    showLineNumbers={showLineNumbers}
+    customStyle={{
+      margin: 0,
+      borderRadius: '4px',
+      fontSize: '13px',
+    }}
+  >
+    {content}
+  </SyntaxHighlighter>
+));
+
+// Memoized message component
+const ChatMessage = memo(({ message, onCopy }) => {
+  const { role, content } = message;
+  const hasDiff = role === "commit" && message.diff;
+
+  const parsedContent = useMemo(() => {
+    if (role === 'assistant') {
+      return parseStreamingContent(content);
+    }
+    return null;
+  }, [role, content]);
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: role === 'user' ? 'flex-end' : 'flex-start',
+        mb: 2,
+        width: '100%',
+      }}
+    >
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2.5,
+          ...messageStyles[role],
+          boxShadow: 'none',
+          width: role === 'commit' ? '100%' : undefined,
+        }}
+      >
+        <Typography
+          variant="body1"
+          sx={{
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            fontSize: '14px',
+            lineHeight: 1.6,
+            fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
+          }}
+        >
+          {!hasDiff && role !== 'assistant' && content}
+          {role === 'assistant' && parsedContent?.map((part, idx) => (
+            part.type === 'text' ? (
+              <span key={idx}>{part.content}</span>
+            ) : (
+              <Box key={idx} sx={{ my: 2, borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
+                <Box 
+                  sx={{ 
+                    position: 'absolute', 
+                    top: 5, 
+                    right: 5, 
+                    zIndex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}
+                >
+                  {part.language && (
+                    <Typography variant="caption" sx={{ color: '#aaa', backgroundColor: 'rgba(0,0,0,0.3)', px: 1, py: 0.5, borderRadius: 1 }}>
+                      {part.language}
+                    </Typography>
+                  )}
+                  <IconButton 
+                    size="small" 
+                    onClick={() => onCopy(part.content)}
+                    sx={{ 
+                      color: '#aaa', 
+                      backgroundColor: 'rgba(0,0,0,0.3)',
+                      '&:hover': { 
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        color: '#fff'
+                      }
+                    }}
+                  >
+                    <ContentCopyIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+                <MemoizedSyntaxHighlighter
+                  language={part.language}
+                  content={part.content}
+                  showLineNumbers={part.content.split('\n').length > 5}
+                />
+              </Box>
+            )
+          ))}
+          {role === "commit" && (
+            <>
+              <Typography component="span" sx={{ color: '#85e89d', fontWeight: 500 }}>Commit: </Typography>
+              <Typography component="span" sx={{ color: '#e0e0e0' }}>{message.hash}</Typography>
+              <br />
+              <Typography component="span" sx={{ color: '#85e89d', fontWeight: 500 }}>Message: </Typography>
+              <Typography component="span" sx={{ color: '#e0e0e0' }}>{message.message}</Typography>
+            </>
+          )}
+        </Typography>
+
+        {hasDiff && (
+          <Box mt={1}>
+            <DiffViewer diff={message.diff} maxHeight="400px" />
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => api.undoCommit(message.hash)}
+              sx={{
+                mt: 2,
+                textTransform: 'none',
+                fontSize: '0.8rem',
+                borderColor: '#404040',
+                color: '#e0e0e0',
+                '&:hover': {
+                  borderColor: '#606060',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                },
+              }}
+            >
+              Revert Changes
+            </Button>
+          </Box>
+        )}
+      </Paper>
+    </Box>
+  );
+});
+
+// Memoized streaming content component
+const StreamingContent = memo(({ content, onCopy }) => {
+  const parsedContent = useMemo(() => parseStreamingContent(content), [content]);
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        mb: 2,
+      }}
+    >
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2.5,
+          backgroundColor: '#262626',
+          color: '#e0e0e0',
+          borderRadius: '8px',
+          marginRight: 'auto',
+          maxWidth: '80%',
+          border: '1px solid #404040',
+          boxShadow: 'none',
+        }}
+      >
+        <Typography
+          variant="body1"
+          sx={{
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            fontSize: '14px',
+            lineHeight: 1.6,
+            fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
+          }}
+        >
+          {parsedContent.map((part, index) => (
+            part.type === 'text' ? (
+              <span key={index}>{part.content}</span>
+            ) : (
+              <Box key={index} sx={{ my: 2, borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
+                <Box 
+                  sx={{ 
+                    position: 'absolute', 
+                    top: 5, 
+                    right: 5, 
+                    zIndex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}
+                >
+                  {part.language && (
+                    <Typography variant="caption" sx={{ color: '#aaa', backgroundColor: 'rgba(0,0,0,0.3)', px: 1, py: 0.5, borderRadius: 1 }}>
+                      {part.language}
+                    </Typography>
+                  )}
+                  <IconButton 
+                    size="small" 
+                    onClick={() => onCopy(part.content)}
+                    sx={{ 
+                      color: '#aaa', 
+                      backgroundColor: 'rgba(0,0,0,0.3)',
+                      '&:hover': { 
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        color: '#fff'
+                      }
+                    }}
+                  >
+                    <ContentCopyIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+                <MemoizedSyntaxHighlighter
+                  language={part.language}
+                  content={part.content}
+                  showLineNumbers={part.content.split('\n').length > 5}
+                />
+              </Box>
+            )
+          ))}
+        </Typography>
+      </Paper>
+    </Box>
+  );
+});
+
 const ChatInterface = () => {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState("")
@@ -220,47 +546,9 @@ const ChatInterface = () => {
   const messagesContainerRef = useRef(null)
   const isUserScrollingRef = useRef(false)
 
-  const parseStreamingContent = (content) => {
-    // Regex to match markdown code blocks (```language code ```)
-    const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
-    const parts = [];
-    let lastIndex = 0;
-    let match;
-
-    // Find all code blocks
-    while ((match = codeBlockRegex.exec(content)) !== null) {
-      // Add text before the code block
-      if (match.index > lastIndex) {
-        parts.push({
-          type: 'text',
-          content: content.substring(lastIndex, match.index)
-        });
-      }
-
-      // Add the code block
-      parts.push({
-        type: 'code',
-        language: match[1] || 'javascript', // Default to javascript if no language specified
-        content: match[2]
-      });
-
-      lastIndex = match.index + match[0].length;
-    }
-
-    // Add any remaining text
-    if (lastIndex < content.length) {
-      parts.push({
-        type: 'text',
-        content: content.substring(lastIndex)
-      });
-    }
-
-    return parts;
-  };
-
-  const copyToClipboard = (text) => {
+  const copyToClipboard = useCallback((text) => {
     navigator.clipboard.writeText(text);
-  };
+  }, []);
 
   // Effect to initialize the session
   useEffect(() => {
@@ -423,7 +711,7 @@ const ChatInterface = () => {
     }
   }, [streamingContent, editorContent, reflectionContent])
 
-  const handleSendMessage = async (e) => {
+  const handleSendMessage = useCallback(async (e) => {
     e?.preventDefault()
     if (!input.trim() || isLoading) return
 
@@ -435,22 +723,17 @@ const ChatInterface = () => {
     isUserScrollingRef.current = false
 
     try {
-      await api.sendMessage(userMessage, {
-        mode
-      })
+      await api.sendMessage(userMessage, { mode })
     } catch (error) {
       console.error("Error sending message:", error)
       setIsLoading(false)
       setMessages((prev) => [...prev, { role: "error", content: "Failed to send message. Please try again." }])
     }
-  }
+  }, [input, isLoading, mode]);
 
-  const handleModeChange = async (newMode) => {
+  const handleModeChange = useCallback(async (newMode) => {
     try {
-      const response = await api.setMode({
-        mode: newMode
-      });
-      
+      const response = await api.setMode({ mode: newMode });
       if (response.status === "success") {
         setMode(newMode);
       }
@@ -461,192 +744,7 @@ const ChatInterface = () => {
         content: "Failed to change mode. Please try again." 
       }]);
     }
-  };
-
-  const messageStyles = {
-    user: {
-      backgroundColor: '#2d2d2d',
-      color: '#ffffff',
-      borderRadius: '8px',
-      marginLeft: 'auto',
-      maxWidth: '80%',
-      border: '1px solid #404040',
-    },
-    assistant: {
-      backgroundColor: '#262626',
-      color: '#e0e0e0',
-      borderRadius: '8px',
-      marginRight: 'auto',
-      maxWidth: '80%',
-      border: '1px solid #404040',
-    },
-    info: {
-      backgroundColor: '#1a365d',
-      color: '#90cdf4',
-      borderRadius: '8px',
-      margin: '8px auto',
-      maxWidth: '90%',
-      border: '1px solid #2d5a87',
-    },
-    error: {
-      backgroundColor: '#742a2a',
-      color: '#feb2b2',
-      borderRadius: '8px',
-      margin: '8px auto',
-      maxWidth: '90%',
-      border: '1px solid #9b2c2c',
-    },
-    commit: {
-      backgroundColor: '#1a202c',
-      color: '#68d391',
-      borderRadius: '8px',
-      margin: '8px auto',
-      maxWidth: '90%',
-      border: '1px solid #2d3748',
-    },
-    editor: {
-      backgroundColor: '#1a365d',
-      color: '#90cdf4',
-      borderRadius: '8px',
-      marginRight: 'auto',
-      maxWidth: '80%',
-      border: '1px solid #2d5a87',
-    },
-    reflection: {
-      backgroundColor: '#2d3748',
-      color: '#a0aec0',
-      borderRadius: '8px',
-      marginRight: 'auto',
-      maxWidth: '80%',
-      border: '1px solid #4a5568',
-    },
-  }
-
-  const renderMessage = (message, index) => {
-    const { role, content } = message
-
-    const hasDiff = role === "commit" && message.diff;
-
-    return (
-      <Box
-        key={index}
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: role === 'user' ? 'flex-end' : 'flex-start',
-          mb: 2,
-          width: '100%',
-        }}
-      >
-        <Paper
-          elevation={0}
-          sx={{
-            p: 2.5,
-            ...messageStyles[role],
-            boxShadow: 'none',
-            width: role === 'commit' ? '100%' : undefined,
-          }}
-        >
-          <Typography
-            variant="body1"
-            sx={{
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              fontSize: '14px',
-              lineHeight: 1.6,
-              fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
-            }}
-          >
-            {!hasDiff && role !== 'assistant' && content}
-            {role === 'assistant' && parseStreamingContent(content).map((part, idx) => (
-              part.type === 'text' ? (
-                <span key={idx}>{part.content}</span>
-              ) : (
-                <Box key={idx} sx={{ my: 2, borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
-                  <Box 
-                    sx={{ 
-                      position: 'absolute', 
-                      top: 5, 
-                      right: 5, 
-                      zIndex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1
-                    }}
-                  >
-                    {part.language && (
-                      <Typography variant="caption" sx={{ color: '#aaa', backgroundColor: 'rgba(0,0,0,0.3)', px: 1, py: 0.5, borderRadius: 1 }}>
-                        {part.language}
-                      </Typography>
-                    )}
-                    <IconButton 
-                      size="small" 
-                      onClick={() => copyToClipboard(part.content)}
-                      sx={{ 
-                        color: '#aaa', 
-                        backgroundColor: 'rgba(0,0,0,0.3)',
-                        '&:hover': { 
-                          backgroundColor: 'rgba(0,0,0,0.5)',
-                          color: '#fff'
-                        }
-                      }}
-                    >
-                      <ContentCopyIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                  <SyntaxHighlighter
-                    language={part.language}
-                    style={vscDarkPlus}
-                    showLineNumbers={part.content.split('\n').length > 5}
-                    customStyle={{
-                      margin: 0,
-                      borderRadius: '4px',
-                      fontSize: '13px',
-                    }}
-                  >
-                    {part.content}
-                  </SyntaxHighlighter>
-                </Box>
-              )
-            ))}
-            {role === "commit" && (
-              <>
-                <Typography component="span" sx={{ color: '#85e89d', fontWeight: 500 }}>Commit: </Typography>
-                <Typography component="span" sx={{ color: '#e0e0e0' }}>{message.hash}</Typography>
-                <br />
-                <Typography component="span" sx={{ color: '#85e89d', fontWeight: 500 }}>Message: </Typography>
-                <Typography component="span" sx={{ color: '#e0e0e0' }}>{message.message}</Typography>
-              </>
-            )}
-          </Typography>
-
-          {hasDiff && (
-            <Box mt={1}>
-              <DiffViewer diff={message.diff} maxHeight="400px" />
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => api.undoCommit(message.hash)}
-                sx={{
-                  mt: 2,
-                  textTransform: 'none',
-                  fontSize: '0.8rem',
-                  borderColor: '#404040',
-                  color: '#e0e0e0',
-                  '&:hover': {
-                    borderColor: '#606060',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  },
-                }}
-              >
-                Revert Changes
-              </Button>
-            </Box>
-          )}
-        </Paper>
-      </Box>
-    )
-  }
+  }, []);
 
   return (
     <Paper
@@ -695,196 +793,33 @@ const ChatInterface = () => {
               scrollBehavior: "smooth",
             }}
           >
-            {messages.map(renderMessage)}
+            {messages.map((message, index) => (
+              <ChatMessage 
+                key={index} 
+                message={message} 
+                onCopy={copyToClipboard}
+              />
+            ))}
 
             {streamingContent && (
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  mb: 2,
-                }}
-              >
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 2.5,
-                    backgroundColor: '#262626',
-                    color: '#e0e0e0',
-                    borderRadius: '8px',
-                    marginRight: 'auto',
-                    maxWidth: '80%',
-                    border: '1px solid #404040',
-                    boxShadow: 'none',
-                  }}
-                >
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      fontSize: '14px',
-                      lineHeight: 1.6,
-                      fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
-                    }}
-                  >
-                    {parseStreamingContent(streamingContent).map((part, index) => (
-                      part.type === 'text' ? (
-                        <span key={index}>{part.content}</span>
-                      ) : (
-                        <Box key={index} sx={{ my: 2, borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
-                          <Box 
-                            sx={{ 
-                              position: 'absolute', 
-                              top: 5, 
-                              right: 5, 
-                              zIndex: 1,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 1
-                            }}
-                          >
-                            {part.language && (
-                              <Typography variant="caption" sx={{ color: '#aaa', backgroundColor: 'rgba(0,0,0,0.3)', px: 1, py: 0.5, borderRadius: 1 }}>
-                                {part.language}
-                              </Typography>
-                            )}
-                            <IconButton 
-                              size="small" 
-                              onClick={() => copyToClipboard(part.content)}
-                              sx={{ 
-                                color: '#aaa', 
-                                backgroundColor: 'rgba(0,0,0,0.3)',
-                                '&:hover': { 
-                                  backgroundColor: 'rgba(0,0,0,0.5)',
-                                  color: '#fff'
-                                }
-                              }}
-                            >
-                              <ContentCopyIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
-                          <SyntaxHighlighter
-                            language={part.language}
-                            style={vscDarkPlus}
-                            showLineNumbers={part.content.split('\n').length > 5}
-                            customStyle={{
-                              margin: 0,
-                              borderRadius: '4px',
-                              fontSize: '13px',
-                            }}
-                          >
-                            {part.content}
-                          </SyntaxHighlighter>
-                        </Box>
-                      )
-                    ))}
-                  </Typography>
-                </Paper>
-              </Box>
+              <StreamingContent 
+                content={streamingContent} 
+                onCopy={copyToClipboard}
+              />
             )}
 
             {editorContent && (
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  mb: 2,
-                }}
-              >
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 2.5,
-                    ...messageStyles.editor,
-                    boxShadow: 'none',
-                  }}
-                >
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      fontSize: '14px',
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {parseStreamingContent(editorContent).map((part, index) => (
-                      part.type === 'text' ? (
-                        <span key={index}>{part.content}</span>
-                      ) : (
-                        <Box key={index} sx={{ my: 2, borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
-                          <SyntaxHighlighter
-                            language={part.language}
-                            style={vscDarkPlus}
-                            showLineNumbers={part.content.split('\n').length > 5}
-                            customStyle={{
-                              margin: 0,
-                              borderRadius: '4px',
-                              fontSize: '13px',
-                            }}
-                          >
-                            {part.content}
-                          </SyntaxHighlighter>
-                        </Box>
-                      )
-                    ))}
-                  </Typography>
-                </Paper>
-              </Box>
+              <StreamingContent 
+                content={editorContent} 
+                onCopy={copyToClipboard}
+              />
             )}
 
             {reflectionContent && (
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  mb: 2,
-                }}
-              >
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 2.5,
-                    ...messageStyles.reflection,
-                    boxShadow: 'none',
-                  }}
-                >
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      fontSize: '14px',
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {parseStreamingContent(reflectionContent).map((part, index) => (
-                      part.type === 'text' ? (
-                        <span key={index}>{part.content}</span>
-                      ) : (
-                        <Box key={index} sx={{ my: 2, borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
-                          <SyntaxHighlighter
-                            language={part.language}
-                            style={vscDarkPlus}
-                            showLineNumbers={part.content.split('\n').length > 5}
-                            customStyle={{
-                              margin: 0,
-                              borderRadius: '4px',
-                              fontSize: '13px',
-                            }}
-                          >
-                            {part.content}
-                          </SyntaxHighlighter>
-                        </Box>
-                      )
-                    ))}
-                  </Typography>
-                </Paper>
-              </Box>
+              <StreamingContent 
+                content={reflectionContent} 
+                onCopy={copyToClipboard}
+              />
             )}
 
             <div ref={messagesEndRef} />
@@ -977,4 +912,4 @@ const ChatInterface = () => {
   )
 }
 
-export default ChatInterface
+export default memo(ChatInterface)
