@@ -17,7 +17,7 @@ import {
 } from "@mui/material"
 import SendIcon from "@mui/icons-material/Send"
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
-import { ExpandMore, AllInclusive, ChatBubbleOutline, Code, Check, Edit, ImageSearch } from "@mui/icons-material"
+import { ExpandMore, AllInclusive, ChatBubbleOutline, Code, Check, Edit, Search } from "@mui/icons-material"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import api, { addEventListener, removeEventListener, SESSION_ID } from "../services/api"
@@ -37,7 +37,7 @@ const modeOptions = [
   {
     value: "context",
     label: "Context",
-    icon: <ImageSearch />,
+    icon: <Search />,
   },
 ]
 
@@ -145,7 +145,7 @@ function CursorModeSelector({ value, onChange }) {
                   sx={{
                     px: 1.5,
                     py: 0.5,
-                    minHeight: '28px',
+                    minHeight: '32px',
                     backgroundColor: option.value === value ? "#0066cc" : "transparent",
                     "&:hover": {
                       backgroundColor: option.value === value ? "#0066cc" : "#333333",
@@ -158,8 +158,8 @@ function CursorModeSelector({ value, onChange }) {
                     },
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 24, color: "white" }}>
-                    {React.cloneElement(option.icon, { fontSize: 'small', sx: { fontSize: '0.75rem' } })}
+                  <ListItemIcon sx={{ minWidth: 30, color: "white" }}>
+                    {React.cloneElement(option.icon, { fontSize: 'medium', sx: { fontSize: '0.8rem' } })}
                   </ListItemIcon>
                   <ListItemText
                     primary={option.label}
@@ -167,7 +167,7 @@ function CursorModeSelector({ value, onChange }) {
                       margin: 0,
                       "& .MuiListItemText-primary": {
                         color: "white",
-                        fontSize: "0.75rem",
+                        fontSize: "0.8rem",
                       },
                     }}
                   />

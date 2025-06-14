@@ -3,6 +3,12 @@ import { Box, Typography, Drawer, AppBar, Toolbar, Button, ToggleButton, ToggleB
 import OpenInNewIcon from "@mui/icons-material/OpenInNew"
 import CodeIcon from '@mui/icons-material/Code'
 import PreviewIcon from '@mui/icons-material/Preview'
+import SettingsIcon from "@mui/icons-material/Settings"
+import Dialog from "@mui/material/Dialog"
+import DialogTitle from "@mui/material/DialogTitle"
+import DialogContent from "@mui/material/DialogContent"
+import DialogActions from "@mui/material/DialogActions"
+import TextField from "@mui/material/TextField"
 
 import ChatInterface from "./ChatInterface"
 import FileManager from "./FileManager"
@@ -12,12 +18,13 @@ import api from "../services/api"
 
 const drawerWidth = 350
 const chatWidth = 500
-const previewUrl = "http://localhost:5173/"
 
 const Layout = () => {
   const [showWebAdder, setShowWebAdder] = useState(false)
   const [mode, setMode] = useState('preview') // 'preview' or 'code'
   const [selectedFile, setSelectedFile] = useState(null)
+  const [configOpen, setConfigOpen] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState("http://localhost:3001/")
 
   const handleClearHistory = async () => {
     if (window.confirm("Are you sure you want to clear the chat history? This cannot be undone.")) {
@@ -40,6 +47,10 @@ const Layout = () => {
   const handleFileSelect = (file) => {
     setSelectedFile(file)
   }
+
+  const handleConfigOpen = () => setConfigOpen(true)
+  const handleConfigClose = () => setConfigOpen(false)
+  const handlePreviewUrlChange = (e) => setPreviewUrl(e.target.value)
 
   const drawer = (
     <Box sx={{ p: 2 }}>
@@ -133,6 +144,26 @@ const Layout = () => {
           >
             Open Preview
           </Button>
+          <Button
+            variant="outlined"
+            startIcon={<SettingsIcon sx={{ fontSize: 16 }} />}
+            onClick={handleConfigOpen}
+            sx={{
+              ml: 1,
+              textTransform: "none",
+              borderColor: "#404040",
+              color: "#e0e0e0",
+              height: "32px",
+              fontSize: "13px",
+              fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
+              "&:hover": {
+                borderColor: "#505050",
+                backgroundColor: "rgba(255, 255, 255, 0.05)",
+              },
+            }}
+          >
+            Settings
+          </Button>
         </Toolbar>
       </AppBar>
 
@@ -193,6 +224,64 @@ const Layout = () => {
       </Box>
 
       {showWebAdder && <WebPageAdder open={showWebAdder} onClose={() => setShowWebAdder(false)} />}
+
+      {/* Config Dialog */}
+      <Dialog 
+        open={configOpen} 
+        onClose={handleConfigClose}
+        PaperProps={{
+          sx: {
+            backgroundColor: '#1e1e1e',
+            color: '#e0e0e0',
+            minWidth: '400px',
+          }
+        }}
+      >
+        <DialogTitle sx={{ borderBottom: '1px solid #404040' }}>Settings</DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <TextField
+            label="Preview URL"
+            value={previewUrl}
+            onChange={handlePreviewUrlChange}
+            fullWidth
+            margin="normal"
+            variant="outlined"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                color: '#e0e0e0',
+                '& fieldset': {
+                  borderColor: '#404040',
+                },
+                '&:hover fieldset': {
+                  borderColor: '#505050',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#007acc',
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: '#888888',
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: '#007acc',
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ borderTop: '1px solid #404040', p: 2 }}>
+          <Button 
+            onClick={handleConfigClose} 
+            sx={{
+              color: '#e0e0e0',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              },
+            }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
