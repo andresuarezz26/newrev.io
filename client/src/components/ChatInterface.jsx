@@ -30,11 +30,7 @@ const ChatInterface = () => {
   const [streamingContent, setStreamingContent] = useState("")
   const [editorContent, setEditorContent] = useState("")
   const [reflectionContent, setReflectionContent] = useState("")
-  const [showSettings, setShowSettings] = useState(false)
   const [mode, setMode] = useState('code')
-  const [architectModel, setArchitectModel] = useState('')
-  const [reasoningEffort, setReasoningEffort] = useState('')
-  const [thinkingTokens, setThinkingTokens] = useState('')
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const isUserScrollingRef = useRef(false)
@@ -87,15 +83,10 @@ const ChatInterface = () => {
       try {
         const response = await api.initSession({
           mode,
-          architectModel,
-          reasoningEffort,
-          thinkingTokens
         })
         if (response.status === "success") {
           setMessages(response.messages || [])
           setMode(response.mode || 'code')
-          setReasoningEffort(response.reasoning_effort || '')
-          setThinkingTokens(response.thinking_tokens || '')
         }
         setIsInitializing(false)
       } catch (error) {
@@ -259,14 +250,8 @@ const ChatInterface = () => {
     isUserScrollingRef.current = false
 
     try {
-      // Format thinking tokens as a number
-      const formattedThinkingTokens = thinkingTokens ? parseFloat(thinkingTokens) : null;
-      
       await api.sendMessage(userMessage, {
-        mode,
-        architectModel,
-        reasoningEffort,
-        thinkingTokens: formattedThinkingTokens
+        mode
       })
     } catch (error) {
       console.error("Error sending message:", error)
@@ -277,14 +262,8 @@ const ChatInterface = () => {
 
   const handleModeChange = async (newMode) => {
     try {
-      // Format thinking tokens as a number
-      const formattedThinkingTokens = thinkingTokens ? parseFloat(thinkingTokens) : null;
-      
       const response = await api.setMode({
-        mode: newMode,
-        architectModel: architectModel || null,
-        reasoningEffort: reasoningEffort || null,
-        thinkingTokens: formattedThinkingTokens
+        mode: newMode
       });
       
       if (response.status === "success") {
@@ -518,104 +497,6 @@ const ChatInterface = () => {
               backgroundColor: "#1e1e1e",
             }}
           >
-            <Tooltip title="Settings">
-              <IconButton
-                onClick={() => setShowSettings(!showSettings)}
-                sx={{
-                  color: "#e0e0e0",
-                  "&:hover": {
-                    backgroundColor: "rgba(255, 255, 255, 0.1)",
-                  },
-                }}
-              >
-                <SettingsIcon />
-              </IconButton>
-            </Tooltip>
-
-            {showSettings && (
-              <Box
-                sx={{
-                  position: "absolute",
-                  top: 60,
-                  right: 20,
-                  backgroundColor: "#2d2d2d",
-                  p: 2,
-                  borderRadius: 1,
-                  boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-                  zIndex: 1000,
-                }}
-              >
-                <Typography variant="subtitle2" sx={{ color: "#e0e0e0", mb: 1 }}>
-                  Model Settings
-                </Typography>
-                <FormControl fullWidth size="small" sx={{ mb: 1 }}>
-                  <InputLabel sx={{ color: "#e0e0e0" }}>Architect Model</InputLabel>
-                  <Select
-                    value={architectModel}
-                    onChange={(e) => setArchitectModel(e.target.value)}
-                    label="Architect Model"
-                    sx={{
-                      color: "#e0e0e0",
-                      "& .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "#404040",
-                      },
-                    }}
-                  >
-                    <MenuItem value="gpt-4">GPT-4</MenuItem>
-                    <MenuItem value="gpt-3.5-turbo">GPT-3.5 Turbo</MenuItem>
-                  </Select>
-                </FormControl>
-                <FormControl fullWidth size="small" sx={{ mb: 1 }}>
-                  <InputLabel sx={{ color: "#e0e0e0" }}>Reasoning Effort</InputLabel>
-                  <Select
-                    value={reasoningEffort}
-                    onChange={(e) => setReasoningEffort(e.target.value)}
-                    label="Reasoning Effort"
-                    sx={{
-                      color: "#e0e0e0",
-                      "& .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "#404040",
-                      },
-                    }}
-                  >
-                    <MenuItem value="high">High</MenuItem>
-                    <MenuItem value="medium">Medium</MenuItem>
-                    <MenuItem value="low">Low</MenuItem>
-                    <MenuItem value="none">None</MenuItem>
-                  </Select>
-                </FormControl>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Thinking Tokens"
-                  type="number"
-                  inputProps={{ 
-                    step: "0.1",
-                    min: "0"
-                  }}
-                  value={thinkingTokens}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    // Only allow valid numeric input
-                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                      setThinkingTokens(value);
-                    }
-                  }}
-                  sx={{
-                    mb: 1,
-                    "& .MuiOutlinedInput-root": {
-                      color: "#e0e0e0",
-                      "& fieldset": {
-                        borderColor: "#404040",
-                      },
-                    },
-                    "& .MuiInputLabel-root": {
-                      color: "#e0e0e0",
-                    },
-                  }}
-                />
-              </Box>
-            )}
           </Box>
 
           <Box
@@ -858,6 +739,7 @@ const ChatInterface = () => {
                 <MenuItem value="code">Code</MenuItem>
                 <MenuItem value="architect">Architect</MenuItem>
                 <MenuItem value="ask">Ask</MenuItem>
+   
               </Select>
             </FormControl>
             <TextField
