@@ -741,7 +741,7 @@ def set_mode():
         kwargs = {
             'edit_format': edit_format,
             'from_coder': current_coder,
-            'summarize_from_coder': summarize_from_coder
+            'summarize_from_coder': summarize_from_coder,
         }
         
         # Add architect model if provided and in architect mode
@@ -758,7 +758,12 @@ def set_mode():
         
         # Create new coder with updated configuration
         try:
-             new_coder = Coder.create(**kwargs)
+             new_coder =  Coder.create(
+                from_coder=current_coder,
+                main_model=current_coder.main_model,
+                edit_format=edit_format,
+                summarize_from_coder=False
+        )
         except Exception as e:
             logger.error(f"Failed to initialize new coder: {str(e)}")
             return jsonify({
