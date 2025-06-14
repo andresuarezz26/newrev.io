@@ -758,12 +758,34 @@ def set_mode():
         
         # Create new coder with updated configuration
         try:
-             new_coder =  Coder.create(
+            io = AiderAPI.CaptureIO(
+                pretty=False,
+                yes=True,
+                dry_run=current_coder.io.dry_run,
+                encoding=current_coder.io.encoding,
+            )
+            new_coder =  Coder.create(
                 from_coder=current_coder,
                 main_model=current_coder.main_model,
                 edit_format=edit_format,
-                summarize_from_coder=False
-        )
+                summarize_from_coder=False)
+            
+            # print current coder language
+            logger.error(f"Current coder language: {current_coder.chat_language}")
+            
+            # print new coder language
+            logger.error(f"New coder language: {new_coder.chat_language}")
+            
+            # print current coder main model
+            logger.error(f"Current coder main model: {current_coder.main_model}")
+        
+            new_coder.commands.io = io
+            
+            # Force the coder to cooperate, regardless of cmd line args
+            new_coder.yield_stream = True
+            new_coder.stream = True
+            new_coder.pretty = False
+        
         except Exception as e:
             logger.error(f"Failed to initialize new coder: {str(e)}")
             return jsonify({
