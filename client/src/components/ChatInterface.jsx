@@ -72,6 +72,7 @@ function CursorModeSelector({ value, onChange }) {
             sx={{
               transform: open ? "rotate(180deg)" : "rotate(0deg)",
               transition: "transform 0.2s ease",
+              fontSize: "small",
             }}
           />
         }
@@ -81,26 +82,25 @@ function CursorModeSelector({ value, onChange }) {
           border: "1px solid #404040",
           borderRadius: "8px",
           textTransform: "none",
-          minWidth: 120,
+          minWidth: 'auto',
+          height: '36px',
           justifyContent: "space-between",
-          px: 2,
-          py: 1,
+          px: 1,
+          py: 0.5,
           "&:hover": {
             backgroundColor: "#333333",
           },
           "& .MuiButton-startIcon": {
-            marginRight: 1,
+            marginRight: 0.5,
           },
           "& .MuiButton-endIcon": {
-            marginLeft: 1,
+            marginLeft: 0.5,
           },
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Typography variant="body2" sx={{ color: "white" }}>
-            {selectedOption.label}
-          </Typography>
-        </Box>
+        <Typography variant="caption" sx={{ color: "white", fontSize: "12px" }}>
+          {selectedOption.label}
+        </Typography>
       </Button>
 
       {/* Dropdown Menu */}
@@ -896,7 +896,6 @@ const ChatInterface = () => {
               gap: 1,
             }}
           >
-            <CursorModeSelector value={mode} onChange={handleModeChange} />
             <TextField
               fullWidth
               multiline
@@ -918,6 +917,7 @@ const ChatInterface = () => {
                   borderRadius: "8px",
                   backgroundColor: "#2d2d2d",
                   color: "#ffffff",
+                  paddingLeft: "0px",
                   paddingRight: "12px",
                   transition: "all 0.2s ease",
                   "& fieldset": {
@@ -931,7 +931,7 @@ const ChatInterface = () => {
                   },
                 },
                 "& .MuiInputBase-input": {
-                  padding: "12px 16px",
+                  padding: "12px 16px 12px 0px",
                   fontSize: "14px",
                   color: "#ffffff",
                   "&::placeholder": {
@@ -939,6 +939,16 @@ const ChatInterface = () => {
                     opacity: 1,
                   },
                 },
+                "& .MuiInputBase-root": {
+                  paddingLeft: "0px",
+                },
+              }}
+              InputProps={{
+                startAdornment: (
+                  <Box sx={{ ml: 1, mr: 0.5 }}>
+                    <CursorModeSelector value={mode} onChange={handleModeChange} />
+                  </Box>
+                ),
               }}
             />
             <IconButton
