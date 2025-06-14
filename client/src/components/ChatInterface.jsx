@@ -7,20 +7,199 @@ import {
   Box, 
   CircularProgress, 
   IconButton,
-  Select,
+  MenuList,
   MenuItem,
-  FormControl,
-  InputLabel,
-  Tooltip,
-  Divider
+  Popper,
+  ClickAwayListener,
+  Divider,
+  ListItemIcon,
+  ListItemText,
 } from "@mui/material"
 import SendIcon from "@mui/icons-material/Send"
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
-import SettingsIcon from '@mui/icons-material/Settings'
+import { ExpandMore, AllInclusive, ChatBubbleOutline, DiamondOutlined, Check, Edit } from "@mui/icons-material"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import api, { addEventListener, removeEventListener, SESSION_ID } from "../services/api"
 import DiffViewer from './DiffViewer'
+
+const modeOptions = [
+  {
+    value: "code",
+    label: "Code",
+    icon: <DiamondOutlined />,
+  },
+  {
+    value: "architect",
+    label: "Architect",
+    icon: <AllInclusive />,
+  },
+  {
+    value: "ask",
+    label: "Ask",
+    icon: <ChatBubbleOutline />,
+  },
+]
+
+function CursorModeSelector({ value, onChange }) {
+  const [open, setOpen] = useState(false)
+  const anchorRef = useRef(null)
+
+  const selectedOption = modeOptions.find((option) => option.value === value) || modeOptions[0]
+
+  const handleToggle = () => {
+    setOpen((prevOpen) => !prevOpen)
+  }
+
+  const handleClose = () => {
+    setOpen(false)
+  }
+
+  const handleSelect = (optionValue) => {
+    onChange(optionValue)
+    setOpen(false)
+  }
+
+  return (
+    <Box>
+      {/* Trigger Button */}
+      <Button
+        ref={anchorRef}
+        onClick={handleToggle}
+        startIcon={selectedOption.icon}
+        endIcon={
+          <ExpandMore
+            sx={{
+              transform: open ? "rotate(180deg)" : "rotate(0deg)",
+              transition: "transform 0.2s ease",
+            }}
+          />
+        }
+        sx={{
+          backgroundColor: "#2a2a2a",
+          color: "white",
+          border: "1px solid #404040",
+          borderRadius: "8px",
+          textTransform: "none",
+          minWidth: 120,
+          justifyContent: "space-between",
+          px: 2,
+          py: 1,
+          "&:hover": {
+            backgroundColor: "#333333",
+          },
+          "& .MuiButton-startIcon": {
+            marginRight: 1,
+          },
+          "& .MuiButton-endIcon": {
+            marginLeft: 1,
+          },
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography variant="body2" sx={{ color: "white" }}>
+            {selectedOption.label}
+          </Typography>
+        </Box>
+      </Button>
+
+      {/* Dropdown Menu */}
+      <Popper open={open} anchorEl={anchorRef.current} placement="bottom-start" sx={{ zIndex: 1300 }}>
+        <ClickAwayListener onClickAway={handleClose}>
+          <Paper
+            sx={{
+              backgroundColor: "#2a2a2a",
+              border: "1px solid #404040",
+              borderRadius: "8px",
+              mt: 0.5,
+              minWidth: 256,
+              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
+            }}
+          >
+            {/* Header */}
+            <Box
+              sx={{
+                px: 2,
+                py: 1,
+                borderBottom: "1px solid #404040",
+              }}
+            >
+              <Typography variant="caption" sx={{ color: "#888888" }}>
+                Select Mode
+              </Typography>
+            </Box>
+
+            {/* Menu Items */}
+            <MenuList sx={{ py: 0.5 }}>
+              {modeOptions.map((option) => (
+                <MenuItem
+                  key={option.value}
+                  onClick={() => handleSelect(option.value)}
+                  selected={option.value === value}
+                  sx={{
+                    px: 2,
+                    py: 1,
+                    backgroundColor: option.value === value ? "#0066cc" : "transparent",
+                    "&:hover": {
+                      backgroundColor: option.value === value ? "#0066cc" : "#333333",
+                    },
+                    "&.Mui-selected": {
+                      backgroundColor: "#0066cc",
+                      "&:hover": {
+                        backgroundColor: "#0066cc",
+                      },
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 32, color: "white" }}>{option.icon}</ListItemIcon>
+                  <ListItemText
+                    primary={option.label}
+                    sx={{
+                      "& .MuiListItemText-primary": {
+                        color: "white",
+                        fontSize: "0.875rem",
+                      },
+                    }}
+                  />
+                  {option.value === value && (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <Edit sx={{ fontSize: 12, color: "white" }} />
+                      <Check sx={{ fontSize: 12, color: "white" }} />
+                    </Box>
+                  )}
+                </MenuItem>
+              ))}
+            </MenuList>
+
+            <Divider sx={{ borderColor: "#404040" }} />
+
+            {/* Footer */}
+            <Box
+              sx={{
+                px: 2,
+                py: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <AllInclusive sx={{ fontSize: 12, color: "#888888" }} />
+                <Typography variant="caption" sx={{ color: "#888888" }}>
+                  Current Mode
+                </Typography>
+                <ExpandMore sx={{ fontSize: 12, color: "#888888" }} />
+              </Box>
+              <Typography variant="caption" sx={{ color: "#888888" }}>
+                {selectedOption.label}
+              </Typography>
+            </Box>
+          </Paper>
+        </ClickAwayListener>
+      </Popper>
+    </Box>
+  )
+}
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState([])
@@ -717,31 +896,7 @@ const ChatInterface = () => {
               gap: 1,
             }}
           >
-            <FormControl size="small" sx={{ minWidth: 120, mr: 1 }}>
-              <InputLabel sx={{ color: "#e0e0e0" }}>Mode</InputLabel>
-              <Select
-                value={mode}
-                onChange={(e) => handleModeChange(e.target.value)}
-                label="Mode"
-                sx={{
-                  color: "#e0e0e0",
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#404040",
-                  },
-                  "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#505050",
-                  },
-                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#606060",
-                  },
-                }}
-              >
-                <MenuItem value="code">Code</MenuItem>
-                <MenuItem value="architect">Architect</MenuItem>
-                <MenuItem value="ask">Ask</MenuItem>
-   
-              </Select>
-            </FormControl>
+            <CursorModeSelector value={mode} onChange={handleModeChange} />
             <TextField
               fullWidth
               multiline
