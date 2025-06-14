@@ -265,14 +265,14 @@ const api = {
   },
 
   // Set the mode for the current session
-  setMode: async (mode, architectModel = null, reasoningEffort = null, thinkingTokens = null) => {
+  setMode: async ({ mode, architectModel, reasoningEffort, thinkingTokens }) => {
     try {
       const response = await axios.post(`${API_URL}/set_mode`, {
         session_id: SESSION_ID,
         mode,
-        architect_model: architectModel,
-        reasoning_effort: reasoningEffort,
-        thinking_tokens: thinkingTokens
+        architect_model: architectModel || null,
+        reasoning_effort: reasoningEffort || null,
+        thinking_tokens: thinkingTokens || null
       });
       return response.data;
     } catch (error) {

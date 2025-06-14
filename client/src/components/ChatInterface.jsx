@@ -282,25 +282,22 @@ const ChatInterface = () => {
       
       const response = await api.setMode({
         mode: newMode,
-        architectModel,
-        reasoningEffort,
+        architectModel: architectModel || null,
+        reasoningEffort: reasoningEffort || null,
         thinkingTokens: formattedThinkingTokens
-      })
+      });
+      
       if (response.status === "success") {
-        setMode(newMode)
-        /**setMessages((prev) => [...prev, { 
-          role: "info", 
-          content: `Switched to ${newMode} mode` 
-        }])*/
+        setMode(newMode);
       }
     } catch (error) {
-      console.error("Error changing mode:", error)
+      console.error("Error changing mode:", error);
       setMessages((prev) => [...prev, { 
         role: "error", 
         content: "Failed to change mode. Please try again." 
-      }])
+      }]);
     }
-  }
+  };
 
   const messageStyles = {
     user: {

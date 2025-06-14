@@ -710,18 +710,92 @@ def set_mode():
             logger.error("No mode provided")
             return jsonify({'status': 'error', 'message': 'Mode is required'}), 400
         
+        # Validate mode
+        valid_modes = ['code', 'architect', 'ask', 'context']
+        if mode not in valid_modes:
+            logger.error(f"Invalid mode: {mode}")
+            return jsonify({
+                'status': 'error', 
+                'message': f'Invalid mode {mode}. Must be one of: {", ".join(valid_modes)}'
+            }), 400
+        
         # Get session
         session = get_or_create_session(session_id)
         if not session:
             logger.error(f"No session found for ID: {session_id}")
             return jsonify({'status': 'error', 'message': 'Session not found'}), 404
         
-        # TODO: Implement mode switching logic here
+        # Get current coder
+        current_coder = session['coder']
+        
+        # Prepare kwargs for new coder
+        summarize_from_coder = True
+        edit_format = mode
+
+        if mode == "code":
+            edit_format = current_coder.main_model.edit_format
+            summarize_from_coder = False
+        elif mode == "ask":
+            summarize_from_coder = False
+
+        kwargs = {
+            'edit_format': edit_format,
+            'from_coder': current_coder,
+            'summarize_from_coder': summarize_from_coder
+        }
+        
+        # Add architect model if provided and in architect mode
+        if mode == 'architect' and architect_model:
+            kwargs['architect_model'] = architect_model
+            
+        # Add reasoning effort if provided
+        if reasoning_effort is not None:
+            kwargs['reasoning_effort'] = float(reasoning_effort)
+            
+        # Add thinking tokens if provided
+        if thinking_tokens is not None:
+            kwargs['thinking_tokens'] = int(thinking_tokens)
+        
+        # Create new coder with updated configuration
+        try:
+             new_coder = Coder.create(**kwargs)
+        except Exception as e:
+            logger.error(f"Failed to initialize new coder: {str(e)}")
+            return jsonify({
+                'status': 'error',
+                'message': f'Failed to switch mode: {str(e)}'
+            }), 500
+        
+        # Update session with new coder
+        session['coder'] = new_coder
+        
+        # Add mode switch message to history
+        mode_switch_message = f'Switched to {mode} mode'
+        if mode == 'architect' and architect_model:
+            mode_switch_message += f' with model {architect_model}'
+        if reasoning_effort is not None:
+            mode_switch_message += f', reasoning effort {reasoning_effort}'
+        if thinking_tokens is not None:
+            mode_switch_message += f', thinking tokens {thinking_tokens}'
+            
+        session['messages'].append({
+            'role': 'info',
+            'content': mode_switch_message
+        })
+        
+        # Get announcements from new coder
+        announcements = new_coder.get_announcements()
+        if announcements:
+            session['messages'].append({
+                'role': 'info',
+                'content': '\n'.join(announcements)
+            })
         
         return jsonify({
             'status': 'success',
             'mode': mode,
-            'message': f'Successfully switched to {mode} mode'
+            'message': mode_switch_message,
+            'announcements': announcements
         })
             
     except Exception as e:
