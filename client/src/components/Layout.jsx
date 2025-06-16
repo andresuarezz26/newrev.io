@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Box, Typography, Drawer, AppBar, Toolbar, Button, ToggleButton, ToggleButtonGroup } from "@mui/material"
 import OpenInNewIcon from "@mui/icons-material/OpenInNew"
 import CodeIcon from '@mui/icons-material/Code'
@@ -17,7 +17,9 @@ import CodeEditor from "./CodeEditor"
 import api from "../services/api"
 
 const drawerWidth = 350
-const chatWidth = 500
+const minChatWidth = 300
+const maxChatWidth = 800
+const defaultChatWidth = 500
 
 const Layout = () => {
   const [showWebAdder, setShowWebAdder] = useState(false)
@@ -25,6 +27,10 @@ const Layout = () => {
   const [selectedFile, setSelectedFile] = useState(null)
   const [configOpen, setConfigOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState("http://localhost:3001/")
+  const [chatWidth, setChatWidth] = useState(defaultChatWidth)
+  const [isDragging, setIsDragging] = useState(false)
+  const dragStartX = useRef(0)
+  const dragStartWidth = useRef(0)
 
   const handleClearHistory = async () => {
     if (window.confirm("Are you sure you want to clear the chat history? This cannot be undone.")) {
@@ -51,6 +57,39 @@ const Layout = () => {
   const handleConfigOpen = () => setConfigOpen(true)
   const handleConfigClose = () => setConfigOpen(false)
   const handlePreviewUrlChange = (e) => setPreviewUrl(e.target.value)
+
+  const handleDragStart = (e) => {
+    setIsDragging(true)
+    dragStartX.current = e.clientX
+    dragStartWidth.current = chatWidth
+    document.body.style.cursor = 'ew-resize'
+    document.body.style.userSelect = 'none'
+  }
+
+  const handleDrag = (e) => {
+    if (!isDragging) return
+    
+    const deltaX = dragStartX.current - e.clientX
+    const newWidth = Math.min(Math.max(dragStartWidth.current + deltaX, minChatWidth), maxChatWidth)
+    setChatWidth(newWidth)
+  }
+
+  const handleDragEnd = () => {
+    setIsDragging(false)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleDrag)
+      window.addEventListener('mouseup', handleDragEnd)
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleDrag)
+      window.removeEventListener('mouseup', handleDragEnd)
+    }
+  }, [isDragging])
 
   const drawer = (
     <Box sx={{ p: 2 }}>
@@ -207,6 +246,21 @@ const Layout = () => {
             <CodeEditor selectedFile={selectedFile} />
           )}
         </Box>
+
+        {/* Draggable divider */}
+        <Box
+          onMouseDown={handleDragStart}
+          sx={{
+            width: '4px',
+            cursor: 'ew-resize',
+            backgroundColor: isDragging ? '#007acc' : 'transparent',
+            '&:hover': {
+              backgroundColor: '#404040',
+            },
+            position: 'relative',
+            zIndex: 2,
+          }}
+        />
 
         {/* Right-side chat */}
         <Box
