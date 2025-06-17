@@ -40,6 +40,32 @@ message_queues = {}
 # Load environment variables from .env file
 load_dotenv()
 
+# Add after the app initialization
+SESSIONS_DIR = Path("sessions")
+SESSIONS_DIR.mkdir(exist_ok=True)
+
+def save_session(session_id, session_data):
+    """Save session data to disk"""
+    session_file = SESSIONS_DIR / f"{session_id}.json"
+    # Convert coder object to a serializable format
+    serializable_data = {
+        'messages': session_data['messages'],
+        'files': session_data['files'],
+        'last_aider_commit_hash': session_data['last_aider_commit_hash'],
+        'input_history': session_data['input_history'],
+        'created_at': session_data['created_at']
+    }
+    with open(session_file, 'w') as f:
+        json.dump(serializable_data, f)
+
+def load_session(session_id):
+    """Load session data from disk"""
+    session_file = SESSIONS_DIR / f"{session_id}.json"
+    if session_file.exists():
+        with open(session_file, 'r') as f:
+            return json.load(f)
+    return None
+
 class AiderAPI:
     """API wrapper for Aider functionality"""
     
@@ -202,7 +228,7 @@ class AiderAPI:
         scraper = Scraper(print_error=lambda x: x)
         return scraper.scrape(url)
 
-# Helper function to get a session or create if it doesn't exist
+# Modify get_or_create_session function
 def get_or_create_session(session_id, create=True):
     """Get or create a session by ID"""
     logger = logging.getLogger(__name__)
@@ -213,6 +239,9 @@ def get_or_create_session(session_id, create=True):
     if session_id not in sessions and create:
         logger.debug(f"Creating new session for ID: {session_id}")
         try:
+            # Try to load existing session data
+            saved_data = load_session(session_id)
+            
             coder = AiderAPI.initialize_coder()
             logger.debug("Coder initialized successfully")
             
@@ -221,27 +250,31 @@ def get_or_create_session(session_id, create=True):
             inchat_files = coder.get_inchat_relative_files()
             logger.debug(f"Found files - All: {all_files}, InChat: {inchat_files}")
             
+            # Create session with saved data or defaults
             sessions[session_id] = {
                 'coder': coder,
-                'messages': [],
-                'files': inchat_files,
-                'last_aider_commit_hash': coder.last_aider_commit_hash,
-                'input_history': list(coder.io.get_input_history()),
-                'created_at': time.time()
+                'messages': saved_data['messages'] if saved_data else [],
+                'files': saved_data['files'] if saved_data else inchat_files,
+                'last_aider_commit_hash': saved_data['last_aider_commit_hash'] if saved_data else coder.last_aider_commit_hash,
+                'input_history': saved_data['input_history'] if saved_data else list(coder.io.get_input_history()),
+                'created_at': saved_data['created_at'] if saved_data else time.time()
             }
-            logger.debug(f"Session created successfully")
             
-            # Add initialization announcements
-            announcements = AiderAPI.get_announcements(coder)
-            sessions[session_id]['messages'].append({
-                'role': 'info', 
-                'content': '\n'.join(announcements)
-            })
-            sessions[session_id]['messages'].append({
-                'role': 'assistant', 
-                'content': 'How can I help you?'
-            })
-            logger.debug("Added initial messages to session")
+            # Add initialization announcements only if no messages exist
+            if not saved_data:
+                announcements = AiderAPI.get_announcements(coder)
+                sessions[session_id]['messages'].append({
+                    'role': 'info', 
+                    'content': '\n'.join(announcements)
+                })
+                sessions[session_id]['messages'].append({
+                    'role': 'assistant', 
+                    'content': 'How can I help you?'
+                })
+                logger.debug("Added initial messages to session")
+            
+            # Save the session
+            save_session(session_id, sessions[session_id])
             
         except Exception as e:
             logger.error(f"Failed to create session: {str(e)}")
@@ -273,6 +306,7 @@ def initialize_session():
         'files': session['files']
     })
 
+# Modify send_message endpoint to save session after each message
 @app.route('/api/send_message', methods=['POST'])
 def send_message():
     """Send a message to the aider coder"""
@@ -294,6 +328,9 @@ def send_message():
     session['messages'].append({'role': 'user', 'content': message})
     coder.io.add_to_input_history(message)
     session['input_history'].append(message)
+    
+    # Save session after adding message
+    save_session(session_id, session)
     
     # Process message asynchronously
     AiderAPI.process_chat(coder, message, session_id)
@@ -566,6 +603,7 @@ def undo_commit():
     
     return jsonify({'status': 'success', 'message': lines_text})
 
+# Modify clear_history endpoint to save session after clearing
 @app.route('/api/clear_history', methods=['POST'])
 def clear_history():
     """Clear chat history"""
@@ -591,6 +629,9 @@ def clear_history():
         'role': 'info', 
         'content': 'Cleared chat history. Now the LLM can\'t see anything before this line.'
     })
+    
+    # Save session after clearing history
+    save_session(session_id, session)
     
     return jsonify({'status': 'success'})
 
@@ -833,29 +874,52 @@ def set_mode():
             'message': f'Unexpected error: {str(e)}'
         }), 500
 
-if __name__ == '__main__':
+def main():
+    """
+    Main function to start the Aider API server.
+    This function will be called by the 'newrev-api' console script.
+    """
     print("=== Starting Aider API Server ===")
-    print(f"Current working directory: {os.getcwd()}")
+    
+    # Get the directory where the user ran 'newrev-api'
+    current_working_directory = os.getcwd()
+    print(f"Current working directory: {current_working_directory}")
     
     # Check if we're in a git repo
     try:
         from git import Repo
-        repo = Repo(os.getcwd(), search_parent_directories=True)
+        # Search for a git repo from the current working directory
+        repo = Repo(current_working_directory, search_parent_directories=True)
         print(f"Found git repository at: {repo.git_dir}")
     except Exception as e:
         print(f"Failed to find git repository: {e}")
-        print("The API server must be run from within a git repository")
-        sys.exit(1)
+        print("The API server must be run from within a git repository. Exiting.")
+        sys.exit(1) # Use sys.exit(1) for a clean exit on error
     
-    # Note about using hardcoded API key
-    print("NOTICE: Using hardcoded Anthropic API key for testing purposes")
-    print("The API key is directly embedded in the code for the PRD analysis functionality")
-    
+    # --- IMPORTANT: Get API Key from Environment Variable ---
+    # This replaces your hardcoded key for the PRD analysis functionality
+    anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not anthropic_api_key:
+        print("\n" + "="*50, file=sys.stderr)
+        print("CRITICAL ERROR: ANTHROPIC_API_KEY environment variable is not set.", file=sys.stderr)
+        print("Please set it (e.g., `export ANTHROPIC_API_KEY=your_key_here`)", file=sys.stderr)
+        print("before running `newrev-run`.", file=sys.stderr)
+        print("="*50 + "\n", file=sys.stderr)
+        sys.exit(1) # Exit if the API key is not provided
+
+    # You can now use 'anthropic_api_key' variable throughout your backend for Anthropic calls
+    # For instance, if you're passing it to Aider's client or directly using it.
+
     # Run the server
     print("Starting Flask server...")
     app.run(
         host='0.0.0.0',
-        port=5000,
-        debug=True,
+        port=5000, # Ensure this matches CLIENT_PORT in install.sh if you intend to configure it there
+        debug=True, # Set to False for production
         threaded=True
-    ) 
+    )
+
+# This block ensures 'main()' is called when the script is run as an executable
+# (e.g., via 'newrev-api' command)
+if __name__ == '__main__':
+    main()

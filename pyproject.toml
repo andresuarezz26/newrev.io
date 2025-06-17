@@ -1,6 +1,5 @@
-
 [project]
-name = "aider-chat"
+name = "newrev"
 description = "Aider is AI pair programming in your terminal"
 readme = "README.md"
 classifiers = [
@@ -20,10 +19,10 @@ requires-python = ">=3.9,<3.13"
 dynamic = ["dependencies", "optional-dependencies", "version"]
 
 [project.urls]
-Homepage = "https://github.com/Aider-AI/aider"
+Homepage = "https://github.com/Aider-AI/aider" # You might want to update this to your fork's URL
 
 [project.scripts]
-aider = "aider.main:main"
+newrev = "aider.main:main" # Changed from "aider = "aider.main:main""
 
 [tool.setuptools.dynamic]
 dependencies = { file = "requirements.txt" }
@@ -38,14 +37,14 @@ playwright = { file = "requirements/requirements-playwright.txt" }
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ["aider"]
+include = ["aider"] # Keep this as 'aider' if your Python package directory is still named 'aider'
 
 [build-system]
 requires = ["setuptools>=68", "setuptools_scm[toml]>=8"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
-write_to = "aider/_version.py"
+write_to = "aider/_version.py" # Keep this as 'aider' if your Python package directory is still named 'aider'
 
 [tool.codespell]
 skip = "*.svg,Gemfile.lock"

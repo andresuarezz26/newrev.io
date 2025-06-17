@@ -26,7 +26,7 @@ const Layout = () => {
   const [mode, setMode] = useState('preview') // 'preview' or 'code'
   const [selectedFile, setSelectedFile] = useState(null)
   const [configOpen, setConfigOpen] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState("http://localhost:3001/")
+  const [previewUrl, setPreviewUrl] = useState("http://localhost:3000/")
   const [chatWidth, setChatWidth] = useState(defaultChatWidth)
   const [isDragging, setIsDragging] = useState(false)
   const dragStartX = useRef(0)

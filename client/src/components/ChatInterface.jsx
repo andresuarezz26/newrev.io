@@ -537,8 +537,14 @@ const StreamingContent = memo(({ content, onCopy }) => {
   );
 });
 
+const STORAGE_KEY = 'chat_messages'
+
 const ChatInterface = () => {
-  const [messages, setMessages] = useState([])
+  const [messages, setMessages] = useState(() => {
+    // Load messages from localStorage on initial render
+    const savedMessages = localStorage.getItem(STORAGE_KEY)
+    return savedMessages ? JSON.parse(savedMessages) : []
+  })
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isInitializing, setIsInitializing] = useState(true)
@@ -562,7 +568,10 @@ const ChatInterface = () => {
           mode,
         })
         if (response.status === "success") {
-          setMessages(response.messages || [])
+          // Only update messages if we don't have any in localStorage
+          if (messages.length === 0) {
+            setMessages(response.messages || [])
+          }
           setMode(response.mode || 'code')
         }
         setIsInitializing(false)
@@ -714,6 +723,11 @@ const ChatInterface = () => {
       removeEventListener("error", handleError)
     }
   }, [streamingContent, editorContent, reflectionContent])
+
+  // Add effect to save messages to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages))
+  }, [messages])
 
   const handleSendMessage = useCallback(async (e) => {
     e?.preventDefault()

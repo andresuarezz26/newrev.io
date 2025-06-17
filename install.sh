@@ -1,107 +1,99 @@
 #!/bin/bash
 
 # --- Configuration ---
-PROJECT_NAME="newrev" # The name of the directory that git clone will create
-REPO_URL="https://github.com/andresuarezz26/newrev.git"
-# If your project clones into 'newrev.io', change PROJECT_NAME to 'newrev.io'
-# PROJECT_NAME="newrev.io"
+INSTALL_DIR="$HOME/.newrev" # The dedicated installation directory for NewRev
+VENV_DIR="$INSTALL_DIR/.venv" # Location of the Python virtual environment managed by uv
 
-# Determine the absolute path where the script is being run from
-SCRIPT_DIR=$(pwd)
+API_PORT=5000  # The port your backend API will run on
+CLIENT_PORT=3000 # The port your frontend UI will run on
 
-# Paths relative to the project root (will be set after cd into PROJECT_NAME)
-API_DIR=""
-CLIENT_DIR=""
-API_APP_PATH=""
-
-VENV_DIR="$SCRIPT_DIR/$PROJECT_NAME/.venv" # Path for the virtual environment
-
-API_PORT=5000
-CLIENT_PORT=3000
-
-# --- Colors for Output ---
+# --- Colors for Terminal Output ---
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
+ORANGE='\033[0;33m' # Specific orange for warnings/notes
 NC='\033[0m' # No Color
 
-# --- Helper Functions ---
+# --- Helper Function to Check for Global Commands ---
 check_global_command() {
     if ! command -v "$1" &> /dev/null; then
-        echo -e "${RED}Error: '$1' is not installed or not in your PATH.${NC}"
-        echo -e "Please install '$1' and try again. For example:"
-        if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-            echo "  - Ubuntu/Debian: sudo apt install $1"
-        elif [[ "$OSTYPE" == "darwin"* ]]; then
-            echo "  - macOS (Homebrew): brew install $1"
-        fi
+        echo -e "${RED}Error: '$1' is not installed or not in your system's PATH.${NC}"
+        echo -e "Please install '$1' and try again."
+        echo -e "  - On Ubuntu/Debian: sudo apt install $1"
+        echo -e "  - On macOS (with Homebrew): brew install $1"
         exit 1
     fi
 }
 
-# --- Welcome and Checks ---
-echo -e "${GREEN}--- Starting NewRev Installation & Setup ---${NC}"
+# --- Helper Function to Install UV CLI if Missing ---
+install_uv_cli() {
+    echo -e "${YELLOW}Checking for uv CLI...${NC}"
+    if ! command -v uv &> /dev/null; then
+        echo -e "${ORANGE}uv CLI not found. Attempting to install it...${NC}"
+        echo -e "${ORANGE}This will download and install uv to ~/.cargo/bin (or equivalent).${NC}"
+        # Use the official uv installer script
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Error: Failed to install uv CLI.${NC}"
+            echo -e "${RED}Please install uv manually from https://astral.sh/uv/install.sh and ensure it's in your PATH, then re-run this script.${NC}"
+            exit 1
+        fi
+        # Source the cargo env script to add uv to PATH in current shell session
+        source "$HOME/.cargo/env" &> /dev/null || true # Ignore errors if .cargo/env doesn't exist yet or fails
+        echo -e "${GREEN}uv CLI installed and added to PATH for this session.${NC}"
+    else
+        echo -e "${GREEN}uv CLI already installed.${NC}"
+    fi
+}
 
-echo -e "${YELLOW}Checking for required global tools (git, npm, node)...${NC}"
+# --- Start of Installation Script ---
+echo -e "${GREEN}--- Starting NewRev Automated Setup ---${NC}"
+
+# --- Check/Install Global Dependencies ---
+echo -e "${YELLOW}Checking for required global tools (git, npm, node, python3, rsync)...${NC}"
 check_global_command git
 check_global_command npm
-check_global_command node # npm implies node, but good to double check
+check_global_command node
+check_global_command python3
+check_global_command rsync # Ensure rsync is available
 
-# --- Clone Project if Not Exists ---
-if [ ! -d "$PROJECT_NAME" ]; then
-    echo -e "${GREEN}Project directory '$PROJECT_NAME' not found. Cloning repository...${NC}"
-    git clone "$REPO_URL" "$PROJECT_NAME" || { echo -e "${RED}Failed to clone repository. Exiting.${NC}"; exit 1; }
-    echo -e "${GREEN}Repository cloned successfully.${NC}"
+# --- Copy Project to Dedicated Installation Directory ---
+# Use rsync to copy project files, excluding the .git directory
+if [ ! -d "$INSTALL_DIR" ]; then
+    echo -e "${GREEN}Creating NewRev installation directory: $INSTALL_DIR${NC}"
+    mkdir -p "$INSTALL_DIR" || { echo -e "${RED}Failed to create installation directory.${NC}"; exit 1; }
+    echo -e "${GREEN}Copying NewRev project files to $INSTALL_DIR (excluding .git/)...${NC}"
+    # Use rsync to copy, excluding .git directory
+    rsync -a --exclude='.git/' . "$INSTALL_DIR/" || { echo -e "${RED}Failed to copy project files. Exiting.${NC}"; exit 1; }
+    echo -e "${GREEN}Project files copied.${NC}"
 else
-    echo -e "${YELLOW}Project directory '$PROJECT_NAME' already exists. Skipping cloning.${NC}"
-    echo -e "${YELLOW}Ensure you are running this script from the parent directory of '$PROJECT_NAME'.${NC}"
+    echo -e "${YELLOW}NewRev already seems installed at $INSTALL_DIR.${NC}"
+    echo -e "${YELLOW}Updating files in $INSTALL_DIR (excluding .git/)...${NC}"
+    # Use rsync to update, excluding .git directory
+    rsync -a --exclude='.git/' . "$INSTALL_DIR/" || { echo -e "${RED}Failed to update project files. Exiting.${NC}"; exit 1; }
+    echo -e "${GREEN}Project files updated.${NC}"
 fi
 
-# Change to the project root directory
-cd "$PROJECT_NAME" || { echo -e "${RED}Failed to change to project directory '$PROJECT_NAME'. Exiting.${NC}"; exit 1; }
-PROJECT_ROOT=$(pwd) # Update PROJECT_ROOT to the actual cloned directory
+# Change to the installation directory for all subsequent operations
+cd "$INSTALL_DIR" || { echo -e "${RED}Failed to change to installation directory '$INSTALL_DIR'. Exiting.${NC}"; exit 1; }
 
-# Set paths relative to the new PROJECT_ROOT
-API_DIR="$PROJECT_ROOT/api"
-CLIENT_DIR="$PROJECT_ROOT/client"
-API_APP_PATH="$API_DIR/app.py"
+# --- Install uv CLI if missing ---
+install_uv_cli
 
-# --- Python Version and Virtual Environment Setup ---
-PYTHON_EXE=""
-echo -e "${YELLOW}Checking for Python 3.12 or suitable Python 3 installation...${NC}"
+# --- Python Virtual Environment Setup with uv ---
+echo -e "${GREEN}Setting up Python virtual environment with uv at '${VENV_DIR}' (preferring Python 3.12, downloading if needed)...${NC}"
 
-# Check for python3.12 directly
-if command -v python3.12 &> /dev/null; then
-    PYTHON_EXE="python3.12"
-    echo -e "${GREEN}Found Python 3.12.${NC}"
-# Check for generic python3
-elif command -v python3 &> /dev/null; then
-    PYTHON_EXE="python3"
-    PYTHON_VERSION=$($PYTHON_EXE -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-    echo -e "${YELLOW}Found Python $PYTHON_VERSION.${NC}"
-    if [[ "$PYTHON_VERSION" != "3.12" ]]; then
-        echo -e "${YELLOW}Warning: Python 3.12 is recommended. Using Python $PYTHON_VERSION for the virtual environment.${NC}"
-        echo -e "         If you encounter issues, please install Python 3.12 globally or via pyenv/conda."
-    fi
-else
-    echo -e "${RED}Error: Python 3.12 or a generic python3 is not installed or not in your PATH.${NC}"
-    echo -e "Please install Python 3.x (preferably 3.12) and try again."
-    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        echo "  - Ubuntu/Debian: sudo apt install python3.12 python3.12-venv"
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        echo "  - macOS (Homebrew): brew install python@3.12"
-    fi
-    exit 1
-fi
-
-echo -e "${GREEN}Setting up Python virtual environment in ${VENV_DIR}...${NC}"
+# Remove existing venv to ensure clean state with uv, if it was created by a different method
 if [ -d "$VENV_DIR" ]; then
-    echo -e "${YELLOW}Virtual environment already exists. Reusing.${NC}"
-else
-    "$PYTHON_EXE" -m venv "$VENV_DIR" || { echo -e "${RED}Failed to create virtual environment.${NC}"; exit 1; }
-    echo -e "${GREEN}Virtual environment created.${NC}"
+    echo -e "${YELLOW}Existing virtual environment found. Removing to create a fresh uv venv.${NC}"
+    rm -rf "$VENV_DIR" || { echo -e "${RED}Failed to remove existing virtual environment.${NC}"; exit 1; }
 fi
+
+# Create the uv virtual environment, preferring 3.12, or falling back to >=3.10
+# uv will attempt to provision Python 3.12 if not found, then any >=3.10.
+uv venv --python "3.12" "$VENV_DIR" || uv venv --python ">=3.10" "$VENV_DIR" || { echo -e "${RED}Failed to create uv virtual environment with Python >=3.10. Please ensure a compatible Python version is available on your system or can be provisioned by uv.${NC}"; exit 1; }
+echo -e "${GREEN}uv virtual environment created.${NC}"
 
 # Activate the virtual environment
 source "$VENV_DIR/bin/activate" || { echo -e "${RED}Failed to activate virtual environment.${NC}"; exit 1; }
@@ -109,74 +101,119 @@ echo -e "${GREEN}Virtual environment activated.${NC}"
 
 # Ensure pip is up-to-date in the venv
 echo -e "${YELLOW}Upgrading pip in virtual environment...${NC}"
-pip install --upgrade pip || { echo -e "${RED}Failed to upgrade pip.${NC}"; }
+uv pip install --upgrade pip || { echo -e "${RED}Failed to upgrade pip.${NC}"; }
 
 
-# --- Install Python Backend Dependencies ---
-echo -e "${GREEN}Installing Python backend dependencies...${NC}"
+# --- Install NewRev Python Package (making 'newrev' command available) ---
+echo -e "${GREEN}Installing NewRev Python package (backend). This makes 'newrev' command available.${NC}"
+# Use uv pip install for the editable install of the main package
+uv pip install -e . || { echo -e "${RED}Failed to install NewRev Python package. Exiting.${NC}"; exit 1; }
 
-# Install root requirements if they exist (assuming newrev itself has requirements)
-if [ -f "$PROJECT_ROOT/requirements.txt" ]; then
-    echo -e "${YELLOW}Installing root Python requirements...${NC}"
-    pip install -r "$PROJECT_ROOT/requirements.txt" || { echo -e "${RED}Failed to install root Python requirements.${NC}"; exit 1; }
+# --- Install Core Backend Dependencies from api/requirements.txt ---
+echo -e "${GREEN}Installing core backend dependencies from api/requirements.txt...${NC}"
+# Check if api/requirements.txt exists before trying to install from it
+if [ -f "api/requirements.txt" ]; then
+    uv pip install -r api/requirements.txt || { echo -e "${RED}Failed to install core backend dependencies from api/requirements.txt. Exiting.${NC}"; exit 1; }
+    echo -e "${GREEN}Core backend dependencies from api/requirements.txt installed.${NC}"
+else
+    echo -e "${RED}Error: api/requirements.txt not found. Please ensure the file exists in the correct location.${NC}"
+    exit 1
 fi
-
-# Install API-specific requirements
-if [ -f "$API_DIR/requirements.txt" ]; then
-    echo -e "${YELLOW}Installing API-specific Python requirements...${NC}"
-    pip install -r "$API_DIR/requirements.txt" || { echo -e "${RED}Failed to install API Python requirements.${NC}"; exit 1; }
-fi
-
-echo -e "${GREEN}Python dependencies installed in virtual environment.${NC}"
 
 # --- Install Node.js Frontend Dependencies ---
 echo -e "${GREEN}Installing Node.js frontend dependencies...${NC}"
-if [ -d "$CLIENT_DIR" ]; then
-    (cd "$CLIENT_DIR" && npm install) || { echo -e "${RED}Failed to install Node.js dependencies.${NC}"; exit 1; }
-else
-    echo -e "${RED}Error: Frontend client directory '$CLIENT_DIR' not found. This should not happen if cloned correctly.${NC}"
-    exit 1
-fi
+(cd "$INSTALL_DIR/client" && npm install) || { echo -e "${RED}Failed to install Node.js dependencies.${NC}"; exit 1; }
 echo -e "${GREEN}Node.js dependencies installed.${NC}"
 
-# --- Get API Key ---
-echo -e "${YELLOW}--- Anthropic API Key Setup ---${NC}"
-echo -e "Your API key is needed to run the backend API."
-read -p "Please enter your Anthropic API Key: " ANTHROPIC_API_KEY
-if [ -z "$ANTHROPIC_API_KEY" ]; then
-    echo -e "${RED}Error: Anthropic API Key cannot be empty. Exiting.${NC}"
+# --- Create newrev-run script in user's PATH (for easy backend execution) ---
+RUN_SCRIPT_PATH="$HOME/.local/bin/newrev-run" # Standard location for user binaries
+mkdir -p "$(dirname "$RUN_SCRIPT_PATH")" # Ensure the directory exists
+echo -e "${GREEN}Creating helper script '$RUN_SCRIPT_PATH' for easy backend execution...${NC}"
+cat <<EOF > "$RUN_SCRIPT_PATH"
+#!/bin/bash
+# Helper script to activate NewRev venv and run newrev in the current project directory
+# This script is generated by NewRev's installer.
+
+# --- Configuration (DO NOT MODIFY MANUALLY) ---
+VENV_PATH="$VENV_DIR" # Path to the virtual environment created by install.sh
+# --- End Configuration ---
+
+# Check if the API key is set
+if [ -z "\$ANTHROPIC_API_KEY" ]; then
+    echo -e "${RED}Error: ANTHROPIC_API_KEY environment variable is not set.${NC}"
+    echo -e "Please set it before running newrev-run: export ANTHROPIC_API_KEY=your_key_here"
     exit 1
 fi
 
-# --- Run Backend API ---
-echo -e "${GREEN}--- Starting Backend API ---${NC}"
-echo -e "${YELLOW}API will run on port ${API_PORT}. Look for messages from Aider here.${NC}"
-echo -e "${YELLOW}Starting API... (Output will be redirected to newrev_api.log in background)${NC}"
+# Activate the virtual environment and run newrev-api
+if [ -f "\$VENV_PATH/bin/activate" ]; then
+    source "\$VENV_PATH/bin/activate" || { echo -e "${RED}Failed to activate virtual environment: \$VENV_PATH. Exiting.${NC}"; exit 1; }
+    echo -e "${BLUE}NewRev virtual environment activated.${NC}"
+    echo -e "${GREEN}Starting NewRev API in current project: $(pwd)${NC}"
+    # Run the backend using the virtual environment's python directly on the module
+    "\$VENV_PATH/bin/python" -m api.app "\$@"
+else
+    echo -e "${RED}Error: NewRev virtual environment not found at \$VENV_PATH.${NC}"
+    echo -e "Please re-run the NewRev installation script: ~/.newrev/install.sh"
+    exit 1
+fi
+EOF
+chmod +x "$RUN_SCRIPT_PATH" || { echo -e "${RED}Failed to make newrev-run executable.${NC}"; exit 1; }
+echo -e "${GREEN}Helper script created at $RUN_SCRIPT_PATH.${NC}"
 
-# Run the API using the Python from the virtual environment
-# Ensure your api/app.py reads ANTHROPIC_API_KEY from environment variables (os.getenv).
-# Note: `--model sonnet` is kept as per your original request. Adjust if app.py handles this differently.
-nohup "$VENV_DIR/bin/python3" "$API_APP_PATH" --model sonnet > newrev_api.log 2>&1 &
+# --- Create newrev-client script for frontend execution ---
+CLIENT_SCRIPT_PATH="$HOME/.local/bin/newrev-client" # Standard location for user binaries
+mkdir -p "$(dirname "$CLIENT_SCRIPT_PATH")" # Ensure the directory exists
+echo -e "${GREEN}Creating helper script '$CLIENT_SCRIPT_PATH' for easy frontend execution...${NC}"
+cat <<EOF > "$CLIENT_SCRIPT_PATH"
+#!/bin/bash
+# Helper script to start the NewRev frontend UI
 
-API_PID=$! # Get PID of the last background command
-echo -e "${GREEN}Backend API started (PID: $API_PID). Check newrev_api.log for its output.${NC}"
+# --- Configuration (DO NOT MODIFY MANUALLY) ---
+INSTALL_DIR="$HOME/.newrev"
+CLIENT_PORT=3000
+# --- End Configuration ---
 
-# --- Run Frontend ---
-echo -e "${GREEN}--- Starting Frontend Application ---${NC}"
-echo -e "${YELLOW}Frontend will run on port ${CLIENT_PORT}.${NC}"
-echo -e "${YELLOW}Starting frontend... (Output will be redirected to newrev_client.log in background)${NC}"
+echo -e "${GREEN}--- Starting NewRev Frontend UI ---${NC}"
+echo -e "${YELLOW}Frontend will run on port ${CLIENT_PORT}. It will connect to the backend (newrev) when you start it.${NC}"
+echo -e "${YELLOW}Starting frontend... (Output is logged to \$INSTALL_DIR/newrev_client.log)${NC}"
 
-# Run the frontend
-nohup npm --prefix "$CLIENT_DIR" run dev > newrev_client.log 2>&1 &
+# nohup runs a command immune to hangups, with output redirected
+nohup npm --prefix "\$INSTALL_DIR/client" run dev > "\$INSTALL_DIR/newrev_client.log" 2>&1 &
+CLIENT_PID=\$! # Get the Process ID of the last background command
+echo -e "${GREEN}Frontend started (PID: \${CLIENT_PID}). Check '\$INSTALL_DIR/newrev_client.log' for details.${NC}"
+echo -e "You can now open your web browser to: ${BLUE}http://localhost:\${CLIENT_PORT}${NC}"
+echo -e "${NC}To stop the frontend, find its PID (it's \${CLIENT_PID}) and run ${YELLOW}kill \${CLIENT_PID}${NC}."
+EOF
+chmod +x "$CLIENT_SCRIPT_PATH" || { echo -e "${RED}Failed to make newrev-client executable.${NC}"; exit 1; }
+echo -e "${GREEN}Helper script created at $CLIENT_SCRIPT_PATH.${NC}"
 
-CLIENT_PID=$!
-echo -e "${GREEN}Frontend started (PID: $CLIENT_PID). Check newrev_client.log for its output.${NC}"
 
-# --- Final Instructions ---
-echo -e "${GREEN}--- Installation and Setup Complete! ---${NC}"
-echo -e "1. ${NC}Open your browser and navigate to: ${BLUE}http://localhost:${CLIENT_PORT}${NC}"
-echo -e "2. ${NC}The backend API is running in the background with PID ${YELLOW}$API_PID${NC} (output in ${YELLOW}newrev_api.log${NC})."
-echo -e "3. ${NC}The frontend is running in the background with PID ${YELLOW}$CLIENT_PID${NC} (output in ${YELLOW}newrev_client.log${NC})."
-echo -e "4. ${NC}To stop both processes, open a new terminal in this directory and use: ${YELLOW}kill $API_PID $CLIENT_PID${NC}"
-echo -e "   If that doesn't work, you can find them with 'ps aux | grep newrev' and then 'kill <PID>'."
-echo -e "${GREEN}Enjoy NewRev!${NC}"
+# Check if ~/.local/bin is in PATH and advise if not
+if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+    echo -e "${YELLOW}Warning: $HOME/.local/bin is not in your system's PATH.${NC}"
+    echo -e "${YELLOW}You may need to add it to your shell's configuration file (~/.bashrc, ~/.zshrc, ~/.profile) for 'newrev-run' and 'newrev-client' to be directly callable.${NC}"
+    echo -e "  Example: echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bashrc && source ~/.bashrc"
+fi
+
+
+# --- Final Instructions for User ---
+echo -e "${GREEN}--- NewRev Automated Setup Complete! ---${NC}"
+
+echo -e "${GREEN}--- NEXT STEP: How to Use NewRev on YOUR PROJECTS ---${NC}"
+echo -e "1. ${NC}Start the NewRev Frontend UI (in a NEW terminal):"
+echo -e "   ${YELLOW}newrev-client${NC}"
+echo -e "   ${YELLOW}Keep this terminal window open for the frontend's output.${NC}"
+2. ${NC}Open your web browser to: ${BLUE}http://localhost:${CLIENT_PORT}${NC}"
+3. ${NC}Open a ${YELLOW}NEW TERMINAL WINDOW${NC}."
+4. ${NC}Navigate to the root directory of your desired GitHub project:"
+   ${YELLOW}cd /path/to/your/github/project${NC}"
+   (e.g., ${YELLOW}cd ~/Documents/my-awesome-repo${NC})"
+5. ${NC}Set your Anthropic API Key (if not already set globally or in your shell's profile):"
+   ${YELLOW}export ANTHROPIC_API_KEY=your_anthropic_api_key_here${NC}"
+6. ${NC}Start the NewRev backend for this project:"
+   ${YELLOW}newrev-run --model sonnet${NC} (or just ${YELLOW}newrev-run${NC})"
+   ${YELLOW}Keep this new terminal window open for the backend's output.${NC}"
+""
+To stop the backend, press ${YELLOW}Ctrl+C${NC} in the terminal where it's running."
+Enjoy NewRev!${NC}"
