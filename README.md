@@ -2,7 +2,7 @@
 
 [Newrev](https://newrev.io) is the web UI for terminal-based AI coding agents. Run your favorite open-source AI coding agent in your browser.
 
-We started by supporting [aider](https://github.com/paul-gauthier/aider) and plan to integrate [codex](https://github.com/openai/codex) and [Plandex](https://github.com/plandex-ai/plandex) in the future.
+We started by supporting [aider](https://github.com/paul-gauthier/aider) and plan to integrate [codex](https://github.com/openai/codex) and [plandex](https://github.com/plandex-ai/plandex) in the future.
 
 ---
 
@@ -81,7 +81,7 @@ git clone git@github.com:newrev-io/newrev.git
 2. **Navigate into the cloned directory**:
 
 ```bash
-cd newrev.io
+cd newrev
 ```
 
 3. **Make the installation script executable and run it**:
@@ -121,7 +121,7 @@ git clone git@github.com:newrev-io/newrev.git
 
 2. **Move to the root directory of the project**:
 ```bash
-cd [Absolute_path]/newrev.io
+cd [Absolute_path]/newrev
 ```
 
 3. **Install aider requirements**:
@@ -138,7 +138,7 @@ pip install -e ..
 5. **Run the backend**:
 Move to the root directory of the GitHub project you want to use with newrev and run the command based on the current location of newrev project. This process runs on port 5000.
 ```bash
-python3 [Absolute_path]/newrev.io/api/app.py --model sonnet --api-key anthropic=<api-key>
+python3 [Absolute_path]/newrev/api/app.py --model sonnet --api-key anthropic=<api-key>
 ```
 
 6. **Run the frontend**:
