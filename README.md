@@ -1,14 +1,61 @@
 # Newrev
 
-**Newrev** is the Web UI for open-source terminal based agents. We started supporting [aider](https://github.com/paul-gauthier/aider), 
+[Newrev](https://newrev.io)  is an open-source Web UI designed for open-source, terminal-based AI coding agents.
+
+Run a powerful terminal-based AI coding agent from a lightweight IDE that operates directly in your browser.
+
+We started by supporting [aider](https://github.com/paul-gauthier/aider) and plan to integrate [Codex from OpenAI](https://github.com/openai/codex) and [Plandex](https://github.com/plandex-ai/plandex) in the future.
 
 ---
 
-## Demo
-
 ## Features
 
-* 
+* **Chat Modes:** Switch between Ask, Context, and Chat modes to suit your workflow.
+* **Basic IDE Features:** File explorer, read-only file viewer, and search functionality.
+* **Self-Hosted Ollama Support:** Seamlessly work with Ollama in a self-hosted environment.
+* **Broad AI Model Support:** Compatible with Claude, OpenAI, and Deepseek models.
+* **Live Preview:** Real-time live preview for web applications.
+
+---
+
+### Usage
+
+Once the installation is complete, you will have two new commands (`newrev-client` and `newrev-run`) available in your terminal.
+
+1. **Run the Backend**:
+   Open another NEW terminal window and:
+
+   Navigate to the root of the GitHub project you want newrev to work on:
+   ```bash
+   cd ~/Documents/my-awesome-repo
+   ```
+
+   Run the backend with one of these options:
+   ```bash
+   # DeepSeek
+   newrev-run --model deepseek --api-key deepseek=<key>
+
+   # Claude 3.7 Sonnet
+   newrev-run --model sonnet --api-key anthropic=<key>
+
+   # o3-mini
+   newrev-run --model o3-mini --api-key openai=<key>
+
+   # Ollama
+   export OLLAMA_API_BASE=http://127.0.0.1:11434
+   newrev-run --model ollama_chat/<model>
+   # Example: newrev-run --model ollama_chat/llama2
+   ```
+
+   Keep this new terminal window open; it will show the backend's output. To stop the backend, press Ctrl+C.
+
+2. **Start the Frontend UI**:
+   Open a NEW terminal window and run:
+   ```bash
+   newrev-client
+   ```
+   
+   A You can now open your web browser to: http://localhost:3000
 
 ---
 
@@ -22,9 +69,9 @@
 
 ## 🛠️ Installation Guide
 
-### MAC & LINUX Installation
+### MAC & LINUX Installation using script
 
-1. **Clone the repository**: Open your terminal and clone the repository to your desired location. We recommend cloning it directly to your home directory for simplicity, as the installer will then copy the necessary files to ~/.newrev.
+1. **Clone the repository**: Open your terminal and clone the repository to your desired location. 
 
 ```bash
 git clone git@github.com:newrev-io/newrev.git
@@ -61,43 +108,6 @@ For Windows users, we recommend using Git Bash or Windows Subsystem for Linux (W
 sudo apt update && sudo apt install git npm nodejs python3 rsync
 ```
 4. Follow the MAC & LINUX steps above.
-
-### After Installation (Launching newrev)
-
-Once install.sh has completed successfully, you will have two new commands (`newrev-client` and `newrev-run`) available in your terminal.
-
-1. **Start the Frontend UI**:
-   Open a NEW terminal window and run:
-   ```bash
-   newrev-client
-   ```
-   Keep this terminal window open; it will show the frontend's output.
-   
-   You can now open your web browser to: http://localhost:3000
-
-2. **Run the Backend**:
-   Open another NEW terminal window (keep the frontend terminal open) and:
-
-   Navigate to the root of the GitHub project you want NewRev to work on:
-   ```bash
-   cd ~/Documents/my-awesome-repo
-   ```
-
-   Run the backend with one of these options:
-   ```bash
-   # DeepSeek
-   newrev-run --model deepseek --api-key deepseek=<key>
-
-   # Claude 3.7 Sonnet
-   newrev-run --model sonnet --api-key anthropic=<key>
-
-   # o3-mini
-   newrev-run --model o3-mini --api-key openai=<key>
-   ```
-
-   Keep this new terminal window open; it will show the backend's output. To stop the backend, press Ctrl+C.
-
----
 
 ## Manual Installation
 
@@ -139,9 +149,6 @@ npm run dev
 ```
 
 Note: Replace `[Absolute_path]` with the actual absolute path to your newrev installation directory.
-
----
-
 
 ---
 
