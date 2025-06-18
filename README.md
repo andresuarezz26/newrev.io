@@ -1,8 +1,6 @@
 # Newrev
 
-[Newrev](https://newrev.io)  is an open-source Web UI designed for open-source, terminal-based AI coding agents.
-
-Run a powerful terminal-based AI coding agent from a lightweight IDE that operates directly in your browser.
+[Newrev](https://newrev.io) is the web UI for terminal-based AI coding agents. Run your favorite open-source AI coding agent in your browser.
 
 We started by supporting [aider](https://github.com/paul-gauthier/aider) and plan to integrate [codex](https://github.com/openai/codex) and [Plandex](https://github.com/plandex-ai/plandex) in the future.
 
