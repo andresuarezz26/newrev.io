@@ -27,7 +27,7 @@
 1. **Clone the repository**: Open your terminal and clone the repository to your desired location. We recommend cloning it directly to your home directory for simplicity, as the installer will then copy the necessary files to ~/.newrev.
 
 ```bash
-git clone https://github.com/andresuarezz26/newrev.io.git
+git clone git@github.com:newrev-io/newrev.git
 ```
 
 2. **Navigate into the cloned directory**:
@@ -105,7 +105,7 @@ If you prefer to install the components manually, follow these steps:
 
 1. **Clone the project**:
 ```bash
-git clone https://github.com/andresuarezz26/newrev.git
+git clone git@github.com:newrev-io/newrev.git
 ```
 
 2. **Move to the root directory of the project**:
@@ -147,6 +147,6 @@ Note: Replace `[Absolute_path]` with the actual absolute path to your newrev ins
 
 ## Contributing
 
-We're just getting started. Contributions, ideas, and PRs are welcome! Feel free to [open an issue](https://github.com/andresuarezz26/newrev.io/issues) or suggest features.
+We're just getting started. Contributions, ideas, and PRs are welcome! Feel free to [open an issue](https://github.com/newrev-io/newrev/issues) or suggest features.
 
 ---
