@@ -4,9 +4,13 @@
 
 Run a powerful terminal-based AI coding agent from a lightweight IDE that operates directly in your browser.
 
-We started by supporting [aider](https://github.com/paul-gauthier/aider) and plan to integrate [Codex from OpenAI](https://github.com/openai/codex) and [Plandex](https://github.com/plandex-ai/plandex) in the future.
+We started by supporting [aider](https://github.com/paul-gauthier/aider) and plan to integrate [codex](https://github.com/openai/codex) and [Plandex](https://github.com/plandex-ai/plandex) in the future.
 
 ---
+
+## Demo
+
+![demo](https://github.com/user-attachments/assets/3e59b6b0-f0d5-4e9c-8f3d-1aeea47076d9)
 
 ## Features
 
@@ -23,7 +27,7 @@ We started by supporting [aider](https://github.com/paul-gauthier/aider) and pla
 Once the installation is complete, you will have two new commands (`newrev-client` and `newrev-run`) available in your terminal.
 
 1. **Run the Backend**:
-   Open another NEW terminal window and:
+   Open a terminal window and:
 
    Navigate to the root of the GitHub project you want newrev to work on:
    ```bash
@@ -33,13 +37,13 @@ Once the installation is complete, you will have two new commands (`newrev-clien
    Run the backend with one of these options:
    ```bash
    # DeepSeek
-   newrev-run --model deepseek --api-key deepseek=<key>
+   newrev-run --model deepseek --api-key deepseek=<api-key>
 
    # Claude 3.7 Sonnet
-   newrev-run --model sonnet --api-key anthropic=<key>
+   newrev-run --model sonnet --api-key anthropic=<api-key>
 
    # o3-mini
-   newrev-run --model o3-mini --api-key openai=<key>
+   newrev-run --model o3-mini --api-key openai=<api-key>
 
    # Ollama
    export OLLAMA_API_BASE=http://127.0.0.1:11434
@@ -55,7 +59,7 @@ Once the installation is complete, you will have two new commands (`newrev-clien
    newrev-client
    ```
    
-   A You can now open your web browser to: http://localhost:3000
+   You can now open your web browser to: http://localhost:3000
 
 ---
 
@@ -63,7 +67,6 @@ Once the installation is complete, you will have two new commands (`newrev-clien
 
 * [Node.js](https://nodejs.org/)
 * [Python 3.x](https://www.python.org/) (Any recent Python 3 version is generally fine, as uv will manage the specific Python version for the virtual environment)
-* An [Anthropic API key](https://www.anthropic.com/)
 
 ---
 
