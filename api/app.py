@@ -896,20 +896,6 @@ def main():
         print("The API server must be run from within a git repository. Exiting.")
         sys.exit(1) # Use sys.exit(1) for a clean exit on error
     
-    # --- IMPORTANT: Get API Key from Environment Variable ---
-    # This replaces your hardcoded key for the PRD analysis functionality
-    anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not anthropic_api_key:
-        print("\n" + "="*50, file=sys.stderr)
-        print("CRITICAL ERROR: ANTHROPIC_API_KEY environment variable is not set.", file=sys.stderr)
-        print("Please set it (e.g., `export ANTHROPIC_API_KEY=your_key_here`)", file=sys.stderr)
-        print("before running `newrev-run`.", file=sys.stderr)
-        print("="*50 + "\n", file=sys.stderr)
-        sys.exit(1) # Exit if the API key is not provided
-
-    # You can now use 'anthropic_api_key' variable throughout your backend for Anthropic calls
-    # For instance, if you're passing it to Aider's client or directly using it.
-
     # Run the server
     print("Starting Flask server...")
     app.run(
