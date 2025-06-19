@@ -4,7 +4,7 @@
 INSTALL_DIR="$HOME/.newrev" # The dedicated installation directory for NewRev
 VENV_DIR="$INSTALL_DIR/.venv" # Location of the Python virtual environment managed by uv
 
-API_PORT=5000  # The port your backend API will run on
+API_PORT=5000     # The port your backend API will run on
 CLIENT_PORT=3000 # The port your frontend UI will run on
 
 # --- Colors for Terminal Output ---
@@ -139,13 +139,6 @@ INSTALL_DIR="$HOME/.newrev" # Reference the installation directory
 VENV_PATH="$INSTALL_DIR/.venv" # Path to the virtual environment created by install.sh
 # --- End Configuration ---
 
-# Check if the API key is set
-if [ -z "\$ANTHROPIC_API_KEY" ]; then
-    echo -e "${RED}Error: ANTHROPIC_API_KEY environment variable is not set.${NC}"
-    echo -e "Please set it before running newrev-run: export ANTHROPIC_API_KEY=your_key_here"
-    exit 1
-fi
-
 # Activate the virtual environment and run the backend
 if [ -f "\$VENV_PATH/bin/activate" ]; then
     source "\$VENV_PATH/bin/activate" || { echo -e "${RED}Failed to activate virtual environment: \$VENV_PATH. Exiting.${NC}"; exit 1; }
@@ -204,20 +197,20 @@ echo -e "${GREEN}--- NewRev Automated Setup Complete! ---${NC}"
 
 echo -e "${GREEN}--- NEXT STEP: How to Use NewRev on YOUR PROJECTS ---${NC}"
 echo -e "1. ${NC}Start the NewRev Frontend UI (in a NEW terminal):"
-echo -e "   ${YELLOW}newrev-client${NC}"
-echo -e "   ${YELLOW}Keep this terminal window open for the frontend's output.${NC}"
+echo -e "  ${YELLOW}newrev-client${NC}"
+echo -e "  ${YELLOW}Keep this terminal window open for the frontend's output.${NC}"
 echo -e "2. ${NC}Open your web browser to: ${BLUE}http://localhost:${CLIENT_PORT}${NC}"
 echo -e "3. ${NC}Open a ${YELLOW}NEW TERMINAL WINDOW${NC}."
 echo -e "4. ${NC}Navigate to the root directory of your desired GitHub project:"
-echo -e "   ${YELLOW}cd /path/to/your/github/project${NC}"
-echo -e "   (e.g., ${YELLOW}cd ~/Documents/my-awesome-repo${NC})"
+echo -e "  ${YELLOW}cd /path/to/your/github/project${NC}"
+echo -e "  (e.g., ${YELLOW}cd ~/Documents/my-awesome-repo${NC})"
 echo -e "5. ${NC}Set your API Key(s) (if not already set globally or in your shell's profile):"
-echo -e "   ${YELLOW}export ANTHROPIC_API_KEY=your_anthropic_key_here${NC}"
-echo -e "   ${YELLOW}export DEEPSEEK_API_KEY=your_deepseek_key_here${NC}"
-echo -e "   ${YELLOW}export OPENAI_API_KEY=your_openai_key_here${NC}"
+echo -e "  ${YELLOW}export ANTHROPIC_API_KEY=your_anthropic_key_here${NC}"
+echo -e "  ${YELLOW}export DEEPSEEK_API_KEY=your_deepseek_key_here${NC}"
+echo -e "  ${YELLOW}export OPENAI_API_KEY=your_openai_key_here${NC}"
 echo -e "6. ${NC}Start the NewRev backend for this project:"
-echo -e "   ${YELLOW}newrev-run --model sonnet${NC} (or choose your preferred model)"
-echo -e "${YELLOW}   Keep this new terminal window open for the backend's output.${NC}"
+echo -e "  ${YELLOW}newrev-run --model sonnet${NC} (or choose your preferred model)"
+echo -e "${YELLOW}  Keep this new terminal window open for the backend's output.${NC}"
 echo -e ""
 echo -e "${NC}To stop the backend, press ${YELLOW}Ctrl+C${NC} in the terminal where it's running."
 echo -e "${GREEN}Enjoy NewRev!${NC}"

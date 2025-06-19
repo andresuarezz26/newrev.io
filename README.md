@@ -20,6 +20,32 @@ We started by supporting [aider](https://github.com/paul-gauthier/aider) and pla
 
 ---
 
+## Why a Browser UI?
+
+We built Newrev as a browser-based interface because it offers several key benefits for AI-assisted coding:
+
+**Lightweight**:
+Newrev runs as a lightweight web app, while the heavy work is handled by terminal-based AI agents. This keeps your computer fast and responsive, using less resources.
+
+**Work with different agents**:
+Some coding agents need step-by-step guidance, others work more independently. The browser UI lets you combine and control these agents easily. You can also mix Newrev agents with agents that works with the IDE. 
+
+**Portability, zero-setup**:
+Thanks to its architecture, Newrev is designed to be capable of support cloud-based setups. This unlocks features as coding with just a link, no installation required and access your environment from any device.
+
+**Interface customization**:
+Unlike IDE plugins, a browser UI lets us design custom layouts that match how each AI agent works. This makes the experience smoother, clearer, and more powerful.
+
+## Experimental Disclaimer
+
+Newrev is an experimental project currently in active development. It's not yet stable, so you might encounter bugs, incomplete features, or breaking changes as we evolve. We're building this in the open with the community and truly welcome:
+
+Bug reports
+Feature requests
+Pull requests
+Good vibes!
+Help us improve by opening issues or submitting pull requests. Check out our Contributing section for more details on how you can help.
+
 ### Usage
 
 Once the installation is complete, you will have two new commands (`newrev-client` and `newrev-run`) available in your terminal.
@@ -64,7 +90,7 @@ Once the installation is complete, you will have two new commands (`newrev-clien
 ## Requirements
 
 * [Node.js](https://nodejs.org/)
-* [Python 3.x](https://www.python.org/) (Any recent Python 3 version is generally fine, as uv will manage the specific Python version for the virtual environment)
+* [Python 3.x](https://www.python.org/)
 
 ---
 
@@ -110,51 +136,10 @@ sudo apt update && sudo apt install git npm nodejs python3 rsync
 ```
 4. Follow the MAC & LINUX steps above.
 
-## Manual Installation
-
-If you prefer to install the components manually, follow these steps:
-
-1. **Clone the project**:
-```bash
-git clone git@github.com:newrev-io/newrev.git
-```
-
-2. **Move to the root directory of the project**:
-```bash
-cd [Absolute_path]/newrev
-```
-
-3. **Install aider requirements**:
-```bash
-pip install -r requirements.txt
-```
-
-4. **Install api requirements**:
-```bash
-pip install -r api/requirements.txt
-pip install -e ..
-```
-
-5. **Run the backend**:
-Move to the root directory of the GitHub project you want to use with newrev and run the command based on the current location of newrev project. This process runs on port 5000.
-```bash
-python3 [Absolute_path]/newrev/api/app.py --model sonnet --api-key anthropic=<api-key>
-```
-
-6. **Run the frontend**:
-This process runs on port 3000.
-```bash
-cd [Absolute_path]/newrev/client
-npm install
-npm run dev
-```
-
-Note: Replace `[Absolute_path]` with the actual absolute path to your newrev installation directory.
-
 ---
 
 ## Contributing
 
-We're just getting started. Contributions, ideas, and PRs are welcome! Feel free to [open an issue](https://github.com/newrev-io/newrev/issues) or suggest features.
+We're just getting started. Contributions, ideas, and PRs are welcome! Feel free to [open an issue](https://github.com/newrev-io/newrev/issues), create a pull request or suggest features.
 
 ---
