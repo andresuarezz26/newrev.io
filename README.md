@@ -119,6 +119,25 @@ chmod +x install.sh
 ./install.sh
 ```
 
+4. **Important Note for Linux Users (if newrev-run / newrev-client are not found)**:
+The install.sh script places helper commands in ~/.local/bin. If your shell (Bash or Zsh) doesn't automatically include this directory in its PATH for new sessions, you'll need to add it.
+
+For Bash users:
+Edit ~/.bashrc:
+
+Bash
+
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+For Zsh users:
+Edit ~/.zshrc:
+
+Bash
+
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+After performing these steps, close and reopen your terminal, or source your respective shell configuration file.
+
 ### WINDOWS Installation
 
 For Windows users, we recommend using Git Bash or Windows Subsystem for Linux (WSL) to follow the Mac & Linux instructions, as the install.sh script is a Bash script.
