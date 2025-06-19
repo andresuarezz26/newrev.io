@@ -31,7 +31,7 @@ install_uv_cli() {
     echo -e "${YELLOW}Checking for uv CLI...${NC}"
     if ! command -v uv &> /dev/null; then
         echo -e "${ORANGE}uv CLI not found. Attempting to install it...${NC}"
-        echo -e "${ORANGE}This will download and install uv to ~/.cargo/bin (or equivalent).${NC}"
+        echo -e "${ORANGE}This will download and install uv to ~/.local/bin (or equivalent).${NC}" # Corrected comment
         # Use the official uv installer script
         curl -LsSf https://astral.sh/uv/install.sh | sh
         if [ $? -ne 0 ]; then
@@ -39,8 +39,10 @@ install_uv_cli() {
             echo -e "${RED}Please install uv manually from https://astral.sh/uv/install.sh and ensure it's in your PATH, then re-run this script.${NC}"
             exit 1
         fi
-        # Source the cargo env script to add uv to PATH in current shell session
-        source "$HOME/.cargo/env" &> /dev/null || true # Ignore errors if .cargo/env doesn't exist yet or fails
+        # --- FIX STARTS HERE ---
+        # Add ~/.local/bin to PATH for the current script execution
+        export PATH="$HOME/.local/bin:$PATH"
+        # --- FIX ENDS HERE ---
         echo -e "${GREEN}uv CLI installed and added to PATH for this session.${NC}"
     else
         echo -e "${GREEN}uv CLI already installed.${NC}"

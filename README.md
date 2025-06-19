@@ -90,7 +90,8 @@ Once the installation is complete, you will have two new commands (`newrev-clien
 ## Requirements
 
 * [Node.js](https://nodejs.org/)
-* [Python 3.8-3.13](https://www.python.org/)
+* [Python >=3.10](https://www.python.org/)
+* rsync
 
 ---
 
