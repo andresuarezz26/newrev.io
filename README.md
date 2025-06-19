@@ -34,7 +34,7 @@ Some coding agents need step-by-step guidance, others work more independently. T
 Thanks to its architecture, Newrev is designed to be capable of support cloud-based setups. This unlocks features as coding with just a link, no installation required and access your environment from any device.
 
 **Interface customization**:
-Unlike IDE plugins, a browser UI lets us design custom layouts that match how each AI agent works.
+Unlike IDE plugins or IDE forks, a browser UI lets us design custom layouts that match how each AI agent works.
 
 ## Experimental Disclaimer
 
@@ -120,22 +120,24 @@ chmod +x install.sh
 ```
 
 4. **Important Note for Linux Users (if newrev-run / newrev-client are not found)**:
-The install.sh script places helper commands in ~/.local/bin. If your shell (Bash or Zsh) doesn't automatically include this directory in its PATH for new sessions, you'll need to add it.
+The `install.sh` script places helper commands in ~/.local/bin. If your shell (Bash or Zsh) doesn't automatically include this directory in its PATH for new sessions, you'll need to add it.
 
 For Bash users:
+
 Edit ~/.bashrc:
 
-Bash
-
+```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
+```
 For Zsh users:
 Edit ~/.zshrc:
 
-Bash
-
+```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
 source ~/.zshrc
+```
+
 After performing these steps, close and reopen your terminal, or source your respective shell configuration file.
 
 ### WINDOWS Installation
