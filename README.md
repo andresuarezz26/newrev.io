@@ -34,7 +34,7 @@ Some coding agents need step-by-step guidance, others work more independently. T
 Thanks to its architecture, Newrev is designed to be capable of support cloud-based setups. This unlocks features as coding with just a link, no installation required and access your environment from any device.
 
 **Interface customization**:
-Unlike IDE plugins, a browser UI lets us design custom layouts that match how each AI agent works. This makes the experience smoother, clearer, and more powerful.
+Unlike IDE plugins, a browser UI lets us design custom layouts that match how each AI agent works.
 
 ## Experimental Disclaimer
 
@@ -90,7 +90,7 @@ Once the installation is complete, you will have two new commands (`newrev-clien
 ## Requirements
 
 * [Node.js](https://nodejs.org/)
-* [Python 3.x](https://www.python.org/)
+* [Python 3.8-3.13](https://www.python.org/)
 
 ---
 
