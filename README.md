@@ -27,9 +27,6 @@ We built Newrev as a browser-based interface because it offers several key benef
 **Lightweight**:
 Newrev runs as a lightweight web app, while the heavy work is handled by terminal-based AI agents. This keeps your computer fast and responsive, using less resources.
 
-**Work with different agents**:
-Some coding agents need step-by-step guidance, others work more independently. The browser UI lets you combine and control these agents easily. You can also mix Newrev agents with agents that works with the IDE. 
-
 **Portability, zero-setup**:
 Thanks to its architecture, Newrev is designed to be capable of support cloud-based setups. This unlocks features as coding with just a link, no installation required and access your environment from any device.
 
