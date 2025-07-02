@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 
@@ -27,6 +27,19 @@ function createWindow() {
     show: false // Don't show until ready
   });
 
+  // Add refresh functionality
+  if (isDev) {
+    // In development, add reload shortcut
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+      if (input.control && input.key.toLowerCase() === 'r') {
+        mainWindow.reload();
+      }
+      if (input.meta && input.key.toLowerCase() === 'r') {
+        mainWindow.reload();
+      }
+    });
+  }
+
   // Load the app
   const startUrl = isDev 
     ? 'http://localhost:3000' 
@@ -44,36 +57,132 @@ function createWindow() {
     }
   });
 
+  // Create menu bar
+  createMenu();
+
   // Handle window closed
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 }
 
+function createMenu() {
+  const template = [
+    {
+      label: 'NewRev',
+      submenu: [
+        {
+          label: 'Refresh',
+          accelerator: 'CmdOrCtrl+R',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.reload();
+            }
+          }
+        },
+        {
+          label: 'Toggle DevTools',
+          accelerator: 'F12',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.toggleDevTools();
+            }
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Quit',
+          accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
+          click: () => {
+            app.quit();
+          }
+        }
+      ]
+    }
+  ];
+
+  if (process.platform === 'darwin') {
+    template[0].submenu.unshift({
+      label: 'About NewRev',
+      role: 'about'
+    }, { type: 'separator' });
+  }
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
+
 function findPython() {
-  // Common Python paths to try
+  const { execSync } = require('child_process');
+  
+  // Extended list of Python paths to try - prioritize conda environments with dependencies
   const pythonPaths = [
+    // First try the exact conda environment that has aider dependencies
+    '/opt/anaconda3/envs/aider-env/bin/python3',
+    '/Users/' + process.env.USER + '/anaconda3/envs/aider-env/bin/python3',
+    '/Users/' + process.env.USER + '/miniconda3/envs/aider-env/bin/python3',
+    // Then try base conda installations
+    '/opt/anaconda3/bin/python3',
+    '/Users/' + process.env.USER + '/anaconda3/bin/python3',
+    '/Users/' + process.env.USER + '/miniconda3/bin/python3',
+    // Then try other common Python installations
+    '/opt/homebrew/bin/python3',
+    '/usr/local/bin/python3',
     'python3',
     'python',
     '/usr/bin/python3',
     '/usr/bin/python',
-    '/usr/local/bin/python3',
+    '/opt/homebrew/bin/python',
     '/usr/local/bin/python',
-    '/opt/homebrew/bin/python3',
-    '/opt/homebrew/bin/python'
+    '/Library/Frameworks/Python.framework/Versions/3.11/bin/python3',
+    '/Library/Frameworks/Python.framework/Versions/3.10/bin/python3',
+    '/Library/Frameworks/Python.framework/Versions/3.9/bin/python3',
+    '/System/Library/Frameworks/Python.framework/Versions/3.9/bin/python3'
   ];
   
+  // Try using 'which' command first
+  try {
+    const whichPython = execSync('which python3 2>/dev/null || which python 2>/dev/null', { 
+      encoding: 'utf8',
+      timeout: 5000 
+    }).trim();
+    
+    if (whichPython) {
+      // Verify the found python works
+      execSync(`${whichPython} --version`, { stdio: 'ignore', timeout: 5000 });
+      console.log('Found Python via which:', whichPython);
+      return whichPython;
+    }
+  } catch (error) {
+    console.log('which command failed, trying direct paths');
+  }
+  
+  // Try direct paths and verify dependencies
   for (const pythonPath of pythonPaths) {
     try {
-      const { execSync } = require('child_process');
-      execSync(`${pythonPath} --version`, { stdio: 'ignore' });
+      // First check if python exists and works
+      execSync(`${pythonPath} --version`, { 
+        stdio: 'ignore', 
+        timeout: 5000,
+        env: { ...process.env, PATH: process.env.PATH + ':/usr/local/bin:/opt/homebrew/bin' }
+      });
+      
+      // Then check if it has the required dependencies
+      execSync(`${pythonPath} -c "import flask, flask_cors, dotenv; print('Dependencies OK')"`, { 
+        stdio: 'ignore', 
+        timeout: 5000,
+        env: { ...process.env, PATH: process.env.PATH + ':/usr/local/bin:/opt/homebrew/bin' }
+      });
+      
+      console.log('Found Python with dependencies at:', pythonPath);
       return pythonPath;
     } catch (error) {
+      console.log(`Python at ${pythonPath} missing dependencies, trying next...`);
       continue;
     }
   }
   
-  throw new Error('Python not found. Please ensure Python is installed.');
+  throw new Error('Python with required dependencies not found.\n\nPlease install the required packages:\npip install flask flask-cors python-dotenv gitpython\n\nOr activate your conda environment with:\nconda activate aider-env');
 }
 
 function startPythonAPI() {
@@ -111,19 +220,40 @@ function startPythonAPI() {
         reject(new Error(`Python executable test failed: ${error.message}`));
         return;
       }
+
+      // Check if port 5000 is already in use
+      const net = require('net');
+      const portCheck = new net.Socket();
       
-      // Enhanced environment setup
-      const pythonPath = isDev 
-        ? workingDir
-        : `${workingDir}:${path.join(process.resourcesPath, 'aider')}`;
+      portCheck.setTimeout(1000);
+      portCheck.on('connect', () => {
+        portCheck.destroy();
+        reject(new Error(`Port ${API_PORT} is already in use. Please close any other applications using this port and restart NewRev.`));
+        return;
+      });
       
+      portCheck.on('timeout', () => {
+        portCheck.destroy();
+        console.log('Port 5000 is available');
+      });
+      
+      portCheck.on('error', () => {
+        // Port is not in use, which is what we want
+        console.log('Port 5000 is available');
+      });
+      
+      portCheck.connect(API_PORT, 'localhost');
+      
+      // Enhanced environment setup - avoid circular import by not adding aider to PYTHONPATH
       const env = {
         ...process.env,
-        PATH: process.env.PATH + ':/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin',
-        PYTHONPATH: pythonPath,
+        PATH: process.env.PATH + ':/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/opt/anaconda3/bin:/opt/anaconda3/envs/aider-env/bin',
+        PYTHONPATH: workingDir, // Only add the base working directory
         PYTHONUNBUFFERED: '1',
         // Add common Python library paths
         DYLD_LIBRARY_PATH: '/usr/local/lib:/opt/homebrew/lib',
+        // Add conda environment activation
+        CONDA_DEFAULT_ENV: 'aider-env',
       };
       
       // Start the Python API process
@@ -174,10 +304,15 @@ function startPythonAPI() {
       apiProcess.on('close', (code) => {
         console.log(`Python API process exited with code ${code}`);
         if (code !== 0) {
-          // Check if it's a dependency issue
-          const errorMsg = code === 2 
-            ? `Python API failed to start (exit code ${code}). This usually means missing Python dependencies. Please ensure all requirements are installed: pip install -r ../api/requirements.txt`
-            : `Python API exited with code ${code}`;
+          // Provide specific error messages based on exit code
+          let errorMsg;
+          if (code === 1) {
+            errorMsg = `Python API startup failed (exit code 1).\n\nCommon causes:\n• Port 5000 already in use\n• Missing Python dependencies\n• Invalid working directory\n• Git repository not found\n\nOutput: ${allOutput}\nErrors: ${allErrors}`;
+          } else if (code === 2) {
+            errorMsg = `Python API failed to start (exit code 2). This usually means missing Python dependencies.\n\nPlease ensure all requirements are installed:\npip install flask flask-cors python-dotenv gitpython\n\nOutput: ${allOutput}\nErrors: ${allErrors}`;
+          } else {
+            errorMsg = `Python API exited with code ${code}.\n\nOutput: ${allOutput}\nErrors: ${allErrors}`;
+          }
           reject(new Error(errorMsg));
         }
       });
@@ -199,8 +334,18 @@ function startPythonAPI() {
 function stopPythonAPI() {
   if (apiProcess) {
     console.log('Stopping Python API...');
-    apiProcess.kill();
-    apiProcess = null;
+    
+    // Try graceful shutdown first
+    apiProcess.kill('SIGTERM');
+    
+    // Force kill after 3 seconds if still running
+    setTimeout(() => {
+      if (apiProcess && !apiProcess.killed) {
+        console.log('Force killing Python API...');
+        apiProcess.kill('SIGKILL');
+      }
+      apiProcess = null;
+    }, 3000);
   }
 }
 
@@ -228,9 +373,14 @@ app.whenReady().then(async () => {
     console.error('Failed to start application:', error);
     
     // Show detailed error dialog with suggestions
-    const errorMessage = isDev 
-      ? `Development Error: ${error.message}\n\nTry running: pip install -r api/requirements.txt`
-      : `${error.message}\n\nSuggestions:\n1. Install Python dependencies: pip install flask flask-cors python-dotenv\n2. Make sure you're in a Git repository\n3. Restart the application`;
+    let errorMessage;
+    if (error.message.includes('Python not found')) {
+      errorMessage = `Python installation not detected.\n\nCommon solutions:\n1. Install Python from python.org\n2. Install via Homebrew: brew install python\n3. Make sure Python is in your PATH\n4. Restart the application after installing Python`;
+    } else {
+      errorMessage = isDev 
+        ? `Development Error: ${error.message}\n\nTry running: pip install -r api/requirements.txt`
+        : `${error.message}\n\nSuggestions:\n1. Install Python dependencies: pip install flask flask-cors python-dotenv\n2. Make sure you're in a Git repository\n3. Restart the application`;
+    }
     
     dialog.showErrorBox(
       'Python API Startup Error',

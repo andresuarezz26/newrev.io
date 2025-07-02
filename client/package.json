@@ -25,7 +25,8 @@
     "electron-builder": "^24.0.0",
     "concurrently": "^8.0.0",
     "cross-env": "^7.0.3",
-    "wait-on": "^7.0.0"
+    "wait-on": "^7.0.0",
+    "nodemon": "^3.0.0"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -34,6 +35,7 @@
     "eject": "react-scripts eject",
     "electron": "electron .",
     "electron-dev": "concurrently \"npm start\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron-dev-live": "concurrently \"npm start\" \"wait-on http://localhost:3000 && nodemon --exec electron . --watch public --watch src\"",
     "electron-pack": "npm run build && electron-builder",
     "electron-pack-unsigned": "npm run build && electron-builder --config.mac.identity=null",
     "preelectron-pack": "npm run build"
@@ -62,7 +64,7 @@
     "appId": "com.newrev.aider",
     "productName": "NewRev",
     "directories": {
-      "output": "dist-working"
+      "output": "dist-deps-check"
     },
     "files": [
       "build/**/*",
