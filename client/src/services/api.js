@@ -1,8 +1,29 @@
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-//const API_URL = process.env.REACT_APP_API_URL || 'https://c80f-190-99-186-105.ngrok-free.app/api';
+// Check if running in Electron
+const isElectron = window.electronAPI !== undefined;
+
+// Get API URL - use dynamic port in Electron, fallback for web
+const getApiUrl = async () => {
+  if (isElectron) {
+    try {
+      const port = await window.electronAPI.getApiPort();
+      return `http://localhost:${port}/api`;
+    } catch (error) {
+      console.error('Failed to get API port from Electron:', error);
+      return 'http://localhost:5000/api';
+    }
+  }
+  return process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+};
+
+// Initialize API_URL
+let API_URL = 'http://localhost:5000/api';
+getApiUrl().then(url => {
+  API_URL = url;
+  console.log('API URL set to:', API_URL);
+});
 
 const SESSION_ID = localStorage.getItem('sessionId') || `session_${uuidv4()}`;
 
@@ -25,13 +46,16 @@ const eventListeners = {
 let eventSource = null;
 
 // Function to connect to SSE stream
-const connectToEventStream = () => {
+const connectToEventStream = async () => {
   if (eventSource) {
     eventSource.close();
   }
 
+  // Ensure we have the correct API URL
+  const apiUrl = await getApiUrl();
+  
   // Create new EventSource connection
-  eventSource = new EventSource(`${API_URL}/stream?session_id=${SESSION_ID}`);
+  eventSource = new EventSource(`${apiUrl}/stream?session_id=${SESSION_ID}`);
   
   // Set up event listeners
   eventSource.addEventListener('connected', (event) => {
@@ -118,14 +142,15 @@ const removeEventListener = (event, callback) => {
 };
 
 // Initialize the connection
-connectToEventStream();
+connectToEventStream().catch(console.error);
 
 // API service
 const api = {
   // Initialize a session
   initSession: async () => {
     try {
-      const response = await axios.post(`${API_URL}/init`, {
+      const apiUrl = await getApiUrl();
+      const response = await axios.post(`${apiUrl}/init`, {
         session_id: SESSION_ID
       });
       return response.data;
@@ -138,7 +163,8 @@ const api = {
   // Send a message to Aider
   sendMessage: async (message) => {
     try {
-      const response = await axios.post(`${API_URL}/send_message`, {
+      const apiUrl = await getApiUrl();
+      const response = await axios.post(`${apiUrl}/send_message`, {
         session_id: SESSION_ID,
         message
       });
@@ -153,7 +179,8 @@ const api = {
   // Get file lists
   getFiles: async () => {
     try {
-      const response = await axios.get(`${API_URL}/get_files`, {
+      const apiUrl = await getApiUrl();
+      const response = await axios.get(`${apiUrl}/get_files`, {
         params: { session_id: SESSION_ID }
       });
       return response.data;
@@ -166,7 +193,8 @@ const api = {
   // Add a file to the chat
   addFile: async (filename) => {
     try {
-      const response = await axios.post(`${API_URL}/add_files`, {
+      const apiUrl = await getApiUrl();
+      const response = await axios.post(`${apiUrl}/add_files`, {
         session_id: SESSION_ID,
         files: [filename]
       });
@@ -180,7 +208,8 @@ const api = {
   // Remove a file from the chat
   removeFile: async (filename) => {
     try {
-      const response = await axios.post(`${API_URL}/remove_files`, {
+      const apiUrl = await getApiUrl();
+      const response = await axios.post(`${apiUrl}/remove_files`, {
         session_id: SESSION_ID,
         files: [filename]
       });
@@ -194,7 +223,8 @@ const api = {
   // Add a web page to the chat
   addWebPage: async (url) => {
     try {
-      const response = await axios.post(`${API_URL}/add_web_page`, {
+      const apiUrl = await getApiUrl();
+      const response = await axios.post(`${apiUrl}/add_web_page`, {
         session_id: SESSION_ID,
         url
       });
@@ -208,7 +238,8 @@ const api = {
   // Undo a commit
   undoCommit: async (commitHash) => {
     try {
-      const response = await axios.post(`${API_URL}/undo_commit`, {
+      const apiUrl = await getApiUrl();
+      const response = await axios.post(`${apiUrl}/undo_commit`, {
         session_id: SESSION_ID,
         commit_hash: commitHash
       });
@@ -222,7 +253,8 @@ const api = {
   // Clear chat history
   clearHistory: async () => {
     try {
-      const response = await axios.post(`${API_URL}/clear_history`, {
+      const apiUrl = await getApiUrl();
+      const response = await axios.post(`${apiUrl}/clear_history`, {
         session_id: SESSION_ID
       });
       return response.data;
@@ -235,7 +267,8 @@ const api = {
   // Run a command
   runCommand: async (command) => {
     try {
-      const response = await axios.post(`${API_URL}/run_command`, {
+      const apiUrl = await getApiUrl();
+      const response = await axios.post(`${apiUrl}/run_command`, {
         session_id: SESSION_ID,
         command
       });
@@ -249,7 +282,8 @@ const api = {
   getFileContent: async (filePath) => {
     try {
       console.log('Fetching file content for:', filePath)
-      const response = await axios.get(`${API_URL}/repo_file`, {
+      const apiUrl = await getApiUrl();
+      const response = await axios.get(`${apiUrl}/repo_file`, {
         params: {
           file_name: filePath
         }
@@ -267,7 +301,8 @@ const api = {
   // Set the mode for the current session
   setMode: async ({ mode, architectModel, reasoningEffort, thinkingTokens }) => {
     try {
-      const response = await axios.post(`${API_URL}/set_mode`, {
+      const apiUrl = await getApiUrl();
+      const response = await axios.post(`${apiUrl}/set_mode`, {
         session_id: SESSION_ID,
         mode,
         architect_model: architectModel || null,

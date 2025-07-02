@@ -1,6 +1,8 @@
 {
   "name": "aider-browser-client",
   "version": "0.1.0",
+  "description": "NewRev - Desktop UI for Aider AI pair programming",
+  "author": "NewRev Team",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.11.0",
@@ -18,12 +20,23 @@
     "react-syntax-highlighter": "^15.5.0",
     "uuid": "^9.0.0"
   },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.0.0",
+    "concurrently": "^8.0.0",
+    "cross-env": "^7.0.3",
+    "wait-on": "^7.0.0"
+  },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "dev": "npm run start" 
+    "electron": "electron .",
+    "electron-dev": "concurrently \"npm start\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron-pack": "npm run build && electron-builder",
+    "electron-pack-unsigned": "npm run build && electron-builder --config.mac.identity=null",
+    "preelectron-pack": "npm run build"
   },
   "eslintConfig": {
     "extends": [
@@ -43,5 +56,48 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://localhost:5000"
+  "main": "public/electron.js",
+  "homepage": "./",
+  "build": {
+    "appId": "com.newrev.aider",
+    "productName": "NewRev",
+    "directories": {
+      "output": "dist-working"
+    },
+    "files": [
+      "build/**/*",
+      "public/electron.js",
+      "public/preload.js",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../api",
+        "to": "api"
+      },
+      {
+        "from": "../aider", 
+        "to": "aider"
+      },
+      "../requirements.txt"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "identity": null,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["arm64", "x64"]
+        }
+      ]
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    },
+    "afterSign": null,
+    "afterAllArtifactBuild": null
+  }
 }
