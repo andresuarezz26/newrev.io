@@ -205,9 +205,11 @@ const Layout = () => {
   const drawer = (
     <Box sx={{ p: 2 }}>
       <FileManager 
+        key={selectedProject} // Force re-render when project changes
         onFileSelect={handleFileSelect} 
         selectedProject={selectedProject}
         isInitialized={isInitialized}
+        onOpenProject={() => setProjectSelectorOpen(true)}
       />
     </Box>
   )

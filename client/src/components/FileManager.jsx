@@ -12,12 +12,14 @@ import {
   CircularProgress,
   Chip,
   Tooltip,
+  Button,
   alpha
 } from "@mui/material"
 import SearchIcon from "@mui/icons-material/Search"
 import AddIcon from "@mui/icons-material/Add"
 import RemoveIcon from "@mui/icons-material/Remove"
 import FolderIcon from "@mui/icons-material/Folder"
+import FolderOpenIcon from "@mui/icons-material/FolderOpen"
 import CodeIcon from "@mui/icons-material/Code"
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
@@ -131,7 +133,7 @@ const FileNode = ({ item, depth, onFileClick, inchatFiles, onToggleFile }) => {
   )
 }
 
-const FileManager = ({ onFileSelect, selectedProject, isInitialized }) => {
+const FileManager = ({ onFileSelect, selectedProject, isInitialized, onOpenProject }) => {
   const [files, setFiles] = useState([])
   const [fileTree, setFileTree] = useState([])
   const [inchatFiles, setInchatFiles] = useState([])
@@ -233,9 +235,25 @@ const FileManager = ({ onFileSelect, selectedProject, isInitialized }) => {
   useEffect(() => {
     if (isInitialized && selectedProject) {
       console.log('Project changed, refreshing files for:', selectedProject)
+      // Clear any existing error state first
+      setError(null)
       handleRefresh() // Use the proper refresh method
     }
   }, [selectedProject, isInitialized])
+  
+  // Also refresh when project changes, regardless of initialized state
+  // This handles cases where project is selected from settings
+  useEffect(() => {
+    if (selectedProject) {
+      console.log('Selected project changed:', selectedProject)
+      // Reset error state when project changes
+      setError(null)
+      // Fetch files with basic method if not initialized yet
+      if (!isInitialized) {
+        fetchFiles()
+      }
+    }
+  }, [selectedProject])
 
   const handleAddFile = async (filename) => {
     if (inchatFiles.includes(filename)) return
@@ -292,23 +310,8 @@ const FileManager = ({ onFileSelect, selectedProject, isInitialized }) => {
     )
   }
 
-  if (error) {
-    return (
-      <Paper
-        sx={{
-          p: 2,
-          bgcolor: "#2d1b1b",
-          borderRadius: "8px",
-          boxShadow: "none",
-          border: "1px solid #4a2626",
-        }}
-      >
-        <Typography sx={{ fontSize: "13px", color: "#ff6b6b" }}>
-          {error}
-        </Typography>
-      </Paper>
-    )
-  }
+  // Show file manager with proper UI even when there's an error
+  const showEmptyState = error || (!isInitialized || !selectedProject);
 
   // Filter the file tree based on search term
   const filterTree = (tree, term) => {
@@ -529,20 +532,97 @@ const FileManager = ({ onFileSelect, selectedProject, isInitialized }) => {
           <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "200px" }}>
             <CircularProgress sx={{ color: "#007acc" }} />
           </Box>
-        ) : error ? (
-          <Paper
-            sx={{
-              p: 2,
-              bgcolor: "#2d1b1b",
-              borderRadius: "8px",
-              boxShadow: "none",
-              border: "1px solid #4a2626",
-            }}
-          >
-            <Typography sx={{ fontSize: "13px", color: "#ff6b6b" }}>
-              {error}
+        ) : showEmptyState ? (
+          // Empty state with action buttons
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            minHeight: '300px',
+            p: 3,
+            textAlign: 'center'
+          }}>
+            <FolderOpenIcon sx={{ fontSize: 48, color: '#555555', mb: 2 }} />
+            <Typography
+              variant="h6"
+              sx={{
+                fontSize: "16px",
+                color: "#888888",
+                mb: 1,
+                fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
+              }}
+            >
+              {!selectedProject ? 'No Project Selected' : 'Project Not Loaded'}
             </Typography>
-          </Paper>
+            <Typography
+              variant="body2"
+              sx={{
+                fontSize: "13px",
+                color: "#666666",
+                mb: 3,
+                maxWidth: '250px',
+                fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
+              }}
+            >
+              {!selectedProject 
+                ? 'Select a project directory to start working with your files' 
+                : error
+                ? 'There was an issue loading the project files'
+                : 'Project is initializing...'}
+            </Typography>
+            
+            <Box sx={{ display: 'flex', gap: 2, flexDirection: 'column', alignItems: 'center' }}>
+              {/* Refresh button - always show */}
+              <Button
+                variant="outlined"
+                startIcon={<RefreshIcon sx={{ 
+                  fontSize: 16,
+                  animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
+                  '@keyframes spin': {
+                    '0%': { transform: 'rotate(0deg)' },
+                    '100%': { transform: 'rotate(360deg)' },
+                  },
+                }} />}
+                onClick={handleRefresh}
+                disabled={isRefreshing || isLoading}
+                sx={{
+                  borderColor: '#404040',
+                  color: '#e0e0e0',
+                  textTransform: 'none',
+                  '&:hover': {
+                    borderColor: '#505050',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                  },
+                  '&:disabled': {
+                    borderColor: '#2a2a2a',
+                    color: '#555555'
+                  }
+                }}
+              >
+                {isRefreshing ? 'Refreshing...' : 'Refresh Files'}
+              </Button>
+              
+              {/* Open project button - only show if we can open projects */}
+              {onOpenProject && (
+                <Button
+                  variant="contained"
+                  startIcon={<FolderOpenIcon sx={{ fontSize: 16 }} />}
+                  onClick={onOpenProject}
+                  sx={{
+                    backgroundColor: '#007acc',
+                    color: '#ffffff',
+                    textTransform: 'none',
+                    '&:hover': {
+                      backgroundColor: '#0066aa'
+                    }
+                  }}
+                >
+                  Open Project
+                </Button>
+              )}
+            </Box>
+          </Box>
         ) : searchTerm ? (
           // Flat list view when searching
           <Box sx={{ mt: 1 }}>
