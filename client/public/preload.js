@@ -14,5 +14,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     node: process.versions.node,
     chrome: process.versions.chrome,
     electron: process.versions.electron
+  },
+  
+  // Logging functionality
+  onBackendLog: (callback) => {
+    ipcRenderer.on('backend-log', (event, logEntry) => callback(logEntry));
+  },
+  removeBackendLogListener: (callback) => {
+    ipcRenderer.removeListener('backend-log', callback);
+  },
+  onToggleLogs: (callback) => {
+    ipcRenderer.on('toggle-logs', callback);
+  },
+  onRuntimeProgress: (callback) => {
+    ipcRenderer.on('runtime-progress', (event, progress) => callback(progress));
   }
 });

@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
+const RuntimeManager = require('./runtime-manager');
 
 // Check if we're in development mode
 const isDev = process.env.NODE_ENV === 'development' || 
@@ -41,10 +42,13 @@ function createWindow() {
   }
 
   // Load the app
-  const startUrl = isDev 
+  // Use environment variable to decide between dev server and built version
+  const useDevServer = process.env.ELECTRON_USE_DEV_SERVER === 'true';
+  const startUrl = (isDev && useDevServer)
     ? 'http://localhost:3000' 
     : `file://${path.join(__dirname, '../build/index.html')}`;
   
+  console.log('Loading app from:', startUrl);
   mainWindow.loadURL(startUrl);
 
   // Show window when ready to prevent visual flash
@@ -60,9 +64,10 @@ function createWindow() {
   // Create menu bar
   createMenu();
 
-  // Handle window closed
+  // Handle window closed - but keep Python API running
   mainWindow.on('closed', () => {
     mainWindow = null;
+    // Don't kill Python API here - only when app actually quits
   });
 }
 
@@ -91,6 +96,33 @@ function createMenu() {
         },
         { type: 'separator' },
         {
+          label: 'Show Backend Logs',
+          accelerator: 'CmdOrCtrl+L',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send('toggle-logs');
+            }
+          }
+        },
+        {
+          label: 'Open Log File',
+          click: () => {
+            const os = require('os');
+            const { shell } = require('electron');
+            const logPath = path.join(os.homedir(), '.newrev', 'logs', 'backend.log');
+            if (require('fs').existsSync(logPath)) {
+              shell.showItemInFolder(logPath);
+            } else {
+              dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                message: 'Log file not found',
+                detail: `Log file will be created at: ${logPath}`
+              });
+            }
+          }
+        },
+        { type: 'separator' },
+        {
           label: 'Quit',
           accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
           click: () => {
@@ -112,85 +144,150 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-function findPython() {
+async function ensurePythonEnvironment(progressCallback) {
+  const fs = require('fs');
   const { execSync } = require('child_process');
+  const os = require('os');
   
-  // Extended list of Python paths to try - prioritize conda environments with dependencies
-  const pythonPaths = [
-    // First try the exact conda environment that has aider dependencies
-    '/opt/anaconda3/envs/aider-env/bin/python3',
-    '/Users/' + process.env.USER + '/anaconda3/envs/aider-env/bin/python3',
-    '/Users/' + process.env.USER + '/miniconda3/envs/aider-env/bin/python3',
-    // Then try base conda installations
-    '/opt/anaconda3/bin/python3',
-    '/Users/' + process.env.USER + '/anaconda3/bin/python3',
-    '/Users/' + process.env.USER + '/miniconda3/bin/python3',
-    // Then try other common Python installations
-    '/opt/homebrew/bin/python3',
-    '/usr/local/bin/python3',
-    'python3',
-    'python',
-    '/usr/bin/python3',
-    '/usr/bin/python',
-    '/opt/homebrew/bin/python',
-    '/usr/local/bin/python',
-    '/Library/Frameworks/Python.framework/Versions/3.11/bin/python3',
-    '/Library/Frameworks/Python.framework/Versions/3.10/bin/python3',
-    '/Library/Frameworks/Python.framework/Versions/3.9/bin/python3',
-    '/System/Library/Frameworks/Python.framework/Versions/3.9/bin/python3'
-  ];
+  const runtimeManager = new RuntimeManager();
   
-  // Try using 'which' command first
-  try {
-    const whichPython = execSync('which python3 2>/dev/null || which python 2>/dev/null', { 
-      encoding: 'utf8',
-      timeout: 5000 
-    }).trim();
-    
-    if (whichPython) {
-      // Verify the found python works
-      execSync(`${whichPython} --version`, { stdio: 'ignore', timeout: 5000 });
-      console.log('Found Python via which:', whichPython);
-      return whichPython;
-    }
-  } catch (error) {
-    console.log('which command failed, trying direct paths');
-  }
+  // Define paths for virtual environment  
+  const userHome = os.homedir();
+  const newrevDir = path.join(userHome, '.newrev');
+  const venvDir = path.join(newrevDir, '.venv');
+  const venvPython = os.platform() === 'win32' 
+    ? path.join(venvDir, 'Scripts', 'python.exe')
+    : path.join(venvDir, 'bin', 'python');
+  const requirementsPath = isDev 
+    ? path.join(__dirname, '../../api/requirements.txt')
+    : path.join(process.resourcesPath, 'api', 'requirements.txt');
   
-  // Try direct paths and verify dependencies
-  for (const pythonPath of pythonPaths) {
+  // Check if virtual environment exists and has dependencies
+  if (fs.existsSync(venvPython)) {
     try {
-      // First check if python exists and works
-      execSync(`${pythonPath} --version`, { 
+      execSync(`"${venvPython}" -c "import flask, flask_cors, dotenv; print('Dependencies OK')"`, { 
         stdio: 'ignore', 
-        timeout: 5000,
-        env: { ...process.env, PATH: process.env.PATH + ':/usr/local/bin:/opt/homebrew/bin' }
+        timeout: 10000 
       });
-      
-      // Then check if it has the required dependencies
-      execSync(`${pythonPath} -c "import flask, flask_cors, dotenv; print('Dependencies OK')"`, { 
-        stdio: 'ignore', 
-        timeout: 5000,
-        env: { ...process.env, PATH: process.env.PATH + ':/usr/local/bin:/opt/homebrew/bin' }
-      });
-      
-      console.log('Found Python with dependencies at:', pythonPath);
-      return pythonPath;
+      console.log('Virtual environment found with all dependencies');
+      return venvPython;
     } catch (error) {
-      console.log(`Python at ${pythonPath} missing dependencies, trying next...`);
-      continue;
+      console.log('Virtual environment exists but missing dependencies, recreating...');
+      try {
+        fs.rmSync(venvDir, { recursive: true, force: true });
+      } catch (e) {
+        console.log('Failed to remove broken venv, continuing...');
+      }
     }
   }
   
-  throw new Error('Python with required dependencies not found.\n\nPlease install the required packages:\npip install flask flask-cors python-dotenv gitpython\n\nOr activate your conda environment with:\nconda activate aider-env');
+  // Ensure we have a Python runtime available
+  progressCallback?.({ stage: 'runtime', message: 'Checking Python runtime...', progress: 10 });
+  
+  const pythonRuntime = await runtimeManager.ensurePythonRuntime((runtimeProgress) => {
+    // Map runtime progress to overall progress (10-60%)
+    const overallProgress = 10 + (runtimeProgress.progress || 0) * 0.5;
+    progressCallback?.({ 
+      stage: 'runtime', 
+      message: runtimeProgress.message || 'Setting up Python runtime...',
+      progress: overallProgress 
+    });
+  });
+  
+  const systemPython = pythonRuntime.path;
+  console.log('Using Python runtime:', systemPython);
+  
+  // Create virtual environment
+  progressCallback?.({ stage: 'venv', message: 'Creating virtual environment...', progress: 65 });
+  
+  if (!fs.existsSync(newrevDir)) {
+    fs.mkdirSync(newrevDir, { recursive: true });
+  }
+  
+  try {
+    console.log('Creating venv with:', systemPython);
+    execSync(`"${systemPython}" -m venv "${venvDir}"`, { 
+      stdio: 'inherit',
+      timeout: 60000 
+    });
+    console.log('Virtual environment created');
+  } catch (error) {
+    throw new Error(`Failed to create virtual environment: ${error.message}`);
+  }
+  
+  // Upgrade pip
+  progressCallback?.({ stage: 'dependencies', message: 'Upgrading pip...', progress: 75 });
+  
+  try {
+    execSync(`"${venvPython}" -m pip install --upgrade pip`, { 
+      stdio: 'inherit',
+      timeout: 60000 
+    });
+    console.log('Pip upgraded');
+  } catch (error) {
+    console.log('Warning: Failed to upgrade pip, continuing...');
+  }
+  
+  // Install requirements
+  progressCallback?.({ stage: 'dependencies', message: 'Installing Python dependencies...', progress: 80 });
+  
+  if (fs.existsSync(requirementsPath)) {
+    try {
+      console.log('Installing from requirements.txt:', requirementsPath);
+      execSync(`"${venvPython}" -m pip install -r "${requirementsPath}"`, { 
+        stdio: 'inherit',
+        timeout: 120000 
+      });
+      console.log('Requirements installed');
+    } catch (error) {
+      throw new Error(`Failed to install requirements: ${error.message}`);
+    }
+  } else {
+    try {
+      console.log('Installing basic dependencies...');
+      execSync(`"${venvPython}" -m pip install flask flask-cors python-dotenv gitpython`, { 
+        stdio: 'inherit',
+        timeout: 120000 
+      });
+      console.log('Basic dependencies installed');
+    } catch (error) {
+      throw new Error(`Failed to install basic dependencies: ${error.message}`);
+    }
+  }
+  
+  // Verify installation
+  progressCallback?.({ stage: 'verifying', message: 'Verifying installation...', progress: 95 });
+  
+  try {
+    execSync(`"${venvPython}" -c "import flask, flask_cors, dotenv; print('All dependencies verified')"`, { 
+      stdio: 'inherit',
+      timeout: 10000 
+    });
+    console.log('Python environment setup complete');
+    
+    progressCallback?.({ stage: 'complete', message: 'Python environment ready!', progress: 100 });
+    
+    return venvPython;
+  } catch (error) {
+    throw new Error(`Python environment verification failed: ${error.message}`);
+  }
 }
 
 function startPythonAPI() {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     try {
-      // Find Python executable
-      const pythonCmd = findPython();
-      console.log('Using Python:', pythonCmd);
+      // Show progress dialog for runtime setup
+      let progressWindow = null;
+      
+      const showProgress = (progress) => {
+        if (mainWindow && mainWindow.webContents) {
+          mainWindow.webContents.send('runtime-progress', progress);
+        }
+      };
+      
+      // Ensure Python environment is set up
+      const pythonCmd = await ensurePythonEnvironment(showProgress);
+      console.log('Using Python from environment:', pythonCmd);
       
       // Get the path to the Python API and working directory
       const apiPath = isDev 
@@ -256,6 +353,30 @@ function startPythonAPI() {
         CONDA_DEFAULT_ENV: 'aider-env',
       };
       
+      // Setup logging
+      const os = require('os');
+      const logsDir = path.join(os.homedir(), '.newrev', 'logs');
+      if (!require('fs').existsSync(logsDir)) {
+        require('fs').mkdirSync(logsDir, { recursive: true });
+      }
+      const logPath = path.join(logsDir, 'backend.log');
+      const logStream = require('fs').createWriteStream(logPath, { flags: 'a' });
+      
+      const logMessage = (level, message) => {
+        const timestamp = new Date().toISOString();
+        const logLine = `[${timestamp}] [${level}] ${message}\n`;
+        logStream.write(logLine);
+        
+        // Send to renderer for real-time display
+        if (mainWindow && mainWindow.webContents) {
+          mainWindow.webContents.send('backend-log', {
+            timestamp,
+            level,
+            message: message.trim()
+          });
+        }
+      };
+
       // Start the Python API process
       apiProcess = spawn(pythonCmd, [apiPath], {
         cwd: workingDir,
@@ -267,14 +388,20 @@ function startPythonAPI() {
       let allOutput = '';
       let allErrors = '';
 
+      logMessage('INFO', `Starting Python API with: ${pythonCmd}`);
+      logMessage('INFO', `API Path: ${apiPath}`);
+      logMessage('INFO', `Working Directory: ${workingDir}`);
+
       apiProcess.stdout.on('data', (data) => {
         const output = data.toString();
         allOutput += output;
         console.log('API stdout:', output);
+        logMessage('STDOUT', output.trim());
         
         // Check for successful startup indicators
         if ((output.includes('Running on') || output.includes('Starting Flask server')) && !hasStarted) {
           hasStarted = true;
+          logMessage('INFO', 'Python API started successfully');
           resolve();
         }
       });
@@ -283,26 +410,37 @@ function startPythonAPI() {
         const errorOutput = data.toString();
         allErrors += errorOutput;
         console.error('API stderr:', errorOutput);
+        logMessage('STDERR', errorOutput.trim());
         
         // Flask development server outputs to stderr, check for success there too
         if ((errorOutput.includes('Running on') || errorOutput.includes('Serving Flask app')) && !hasStarted) {
           hasStarted = true;
+          logMessage('INFO', 'Python API started successfully (via stderr)');
           resolve();
         }
         
         // Check for common Python errors
         if (errorOutput.includes('ModuleNotFoundError') || errorOutput.includes('ImportError')) {
+          logMessage('ERROR', `Python dependency missing: ${errorOutput.trim()}`);
           reject(new Error(`Python dependency missing: ${errorOutput}`));
         }
       });
 
       apiProcess.on('error', (error) => {
         console.error('Failed to start Python API:', error);
+        logMessage('ERROR', `Failed to start Python API: ${error.message}`);
         reject(error);
       });
 
       apiProcess.on('close', (code) => {
         console.log(`Python API process exited with code ${code}`);
+        logMessage('INFO', `Python API process exited with code ${code}`);
+        
+        // Close log stream
+        if (logStream) {
+          logStream.end();
+        }
+        
         if (code !== 0) {
           // Provide specific error messages based on exit code
           let errorMsg;
@@ -313,6 +451,7 @@ function startPythonAPI() {
           } else {
             errorMsg = `Python API exited with code ${code}.\n\nOutput: ${allOutput}\nErrors: ${allErrors}`;
           }
+          logMessage('ERROR', errorMsg);
           reject(new Error(errorMsg));
         }
       });
@@ -395,14 +534,30 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  stopPythonAPI();
+  // On macOS, keep the app and Python API running when windows are closed
+  // Only quit on other platforms
   if (process.platform !== 'darwin') {
+    stopPythonAPI();
     app.quit();
   }
 });
 
-app.on('activate', () => {
+app.on('activate', async () => {
   if (mainWindow === null) {
+    // Check if Python API is still running, restart if needed
+    if (!apiProcess || apiProcess.killed) {
+      try {
+        console.log('Restarting Python API...');
+        await startPythonAPI();
+        console.log('Python API restarted successfully');
+      } catch (error) {
+        console.error('Failed to restart Python API:', error);
+        dialog.showErrorBox(
+          'Python API Restart Error',
+          `Failed to restart Python API: ${error.message}`
+        );
+      }
+    }
     createWindow();
   }
 });

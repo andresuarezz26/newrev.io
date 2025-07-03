@@ -1,5 +1,7 @@
 flask==2.3.3
 flask-cors==4.0.0
+python-dotenv>=0.19.0
+gitpython>=3.1.0
 flask-socketio==5.3.6
 eventlet==0.33.3
 python-socketio==5.10.0

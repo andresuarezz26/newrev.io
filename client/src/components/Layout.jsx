@@ -14,6 +14,7 @@ import ChatInterface from "./ChatInterface"
 import FileManager from "./FileManager"
 import WebPageAdder from "./WebPageAdder"
 import CodeEditor from "./CodeEditor"
+import LogViewer from "./LogViewer"
 import api from "../services/api"
 
 const drawerWidth = 350
@@ -29,6 +30,7 @@ const Layout = () => {
   const [previewUrl, setPreviewUrl] = useState("")
   const [chatWidth, setChatWidth] = useState(defaultChatWidth)
   const [isDragging, setIsDragging] = useState(false)
+  const [showLogs, setShowLogs] = useState(false)
   const dragStartX = useRef(0)
   const dragStartWidth = useRef(0)
 
@@ -90,6 +92,21 @@ const Layout = () => {
       window.removeEventListener('mouseup', handleDragEnd)
     }
   }, [isDragging])
+
+  // Listen for log toggle from Electron menu
+  useEffect(() => {
+    if (window.electronAPI?.onToggleLogs) {
+      const handleToggleLogs = () => {
+        setShowLogs(prev => !prev)
+      }
+      
+      window.electronAPI.onToggleLogs(handleToggleLogs)
+      
+      return () => {
+        // Cleanup if needed
+      }
+    }
+  }, [])
 
   const drawer = (
     <Box sx={{ p: 2 }}>
@@ -336,6 +353,12 @@ const Layout = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Log Viewer */}
+      <LogViewer 
+        open={showLogs} 
+        onClose={() => setShowLogs(false)} 
+      />
     </Box>
   )
 }

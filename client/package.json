@@ -33,12 +33,15 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
+    "dev": "npm run build && cross-env NODE_ENV=development electron .",
     "electron": "electron .",
-    "electron-dev": "concurrently \"npm start\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron-dev-live": "concurrently \"npm start\" \"wait-on http://localhost:3000 && nodemon --exec electron . --watch public --watch src\"",
+    "electron-dev": "concurrently \"npm start\" \"wait-on http://localhost:3000 && cross-env ELECTRON_USE_DEV_SERVER=true electron .\"",
+    "electron-dev-live": "concurrently \"npm start\" \"wait-on http://localhost:3000 && cross-env ELECTRON_USE_DEV_SERVER=true nodemon --exec electron . --watch public --watch src\"",
     "electron-pack": "npm run build && electron-builder",
     "electron-pack-unsigned": "npm run build && electron-builder --config.mac.identity=null",
-    "preelectron-pack": "npm run build"
+    "preelectron-pack": "npm run build",
+    "start:web": "react-scripts start",
+    "dev:hybrid": "concurrently \"npm run start:web\" \"wait-on http://localhost:3000 && cross-env ELECTRON_USE_DEV_SERVER=true nodemon --exec electron . --watch public --watch src\""
   },
   "eslintConfig": {
     "extends": [
@@ -80,8 +83,7 @@
       {
         "from": "../aider", 
         "to": "aider"
-      },
-      "../requirements.txt"
+      }
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
