@@ -21,6 +21,7 @@ import FolderIcon from "@mui/icons-material/Folder"
 import CodeIcon from "@mui/icons-material/Code"
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
+import RefreshIcon from '@mui/icons-material/Refresh'
 import api from "../services/api"
 
 /**
@@ -130,12 +131,13 @@ const FileNode = ({ item, depth, onFileClick, inchatFiles, onToggleFile }) => {
   )
 }
 
-const FileManager = ({ onFileSelect }) => {
+const FileManager = ({ onFileSelect, selectedProject, isInitialized }) => {
   const [files, setFiles] = useState([])
   const [fileTree, setFileTree] = useState([])
   const [inchatFiles, setInchatFiles] = useState([])
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState(null)
 
   // Get file extension
@@ -159,31 +161,81 @@ const FileManager = ({ onFileSelect }) => {
     onFileSelect(file)
   }
 
-  useEffect(() => {
-    const fetchFiles = async () => {
-      try {
-        const response = await api.getFiles()
-        if (response.status === "success") {
-          const allFiles = response.all_files || []
-          setFiles(allFiles)
-          setInchatFiles(response.inchat_files || [])
-          
-          // Use buildFileTree to create the file tree structure
-          const tree = buildFileTree(allFiles)
-          setFileTree(tree)
-          console.log('File Tree Structure:', tree)
-        } else {
-          setError("Failed to fetch files")
+  // Fetch files function that can be reused for initial load and refresh
+  const fetchFiles = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setIsRefreshing(true)
+        setError(null)
+      }
+      
+      const response = await api.getFiles()
+      if (response.status === "success") {
+        const allFiles = response.all_files || []
+        setFiles(allFiles)
+        setInchatFiles(response.inchat_files || [])
+        
+        // Use buildFileTree to create the file tree structure
+        const tree = buildFileTree(allFiles)
+        setFileTree(tree)
+        console.log('File Tree Structure:', tree)
+        
+        if (isRefresh) {
+          // Show success feedback for refresh
+          console.log('Files refreshed successfully')
         }
-      } catch (error) {
-        setError("Error fetching files: " + error.message)
-      } finally {
+      } else {
+        setError("Failed to fetch files")
+      }
+    } catch (error) {
+      setError("Error fetching files: " + error.message)
+    } finally {
+      if (isRefresh) {
+        setIsRefreshing(false)
+      } else {
         setIsLoading(false)
       }
     }
+  }
 
+  // Handle manual refresh using dedicated refresh endpoint
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true)
+      setError(null)
+      
+      const response = await api.refreshFiles()
+      if (response.status === "success") {
+        const allFiles = response.all_files || []
+        setFiles(allFiles)
+        setInchatFiles(response.inchat_files || [])
+        
+        // Use buildFileTree to create the file tree structure
+        const tree = buildFileTree(allFiles)
+        setFileTree(tree)
+        console.log('Files refreshed successfully:', response.message)
+      } else {
+        setError("Failed to refresh files")
+      }
+    } catch (error) {
+      setError("Error refreshing files: " + error.message)
+      console.error('Refresh error:', error)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
+  useEffect(() => {
     fetchFiles()
   }, [])
+
+  // Refresh files when project changes
+  useEffect(() => {
+    if (isInitialized && selectedProject) {
+      console.log('Project changed, refreshing files for:', selectedProject)
+      handleRefresh() // Use the proper refresh method
+    }
+  }, [selectedProject, isInitialized])
 
   const handleAddFile = async (filename) => {
     if (inchatFiles.includes(filename)) return
@@ -307,22 +359,60 @@ const FileManager = ({ onFileSelect }) => {
       }}
     >
       <Box sx={{ p: 2.5, borderBottom: "1px solid #404040" }}>
-        <Typography
-          variant="h6"
-          sx={{
-            fontWeight: 600,
-            fontSize: "16px",
-            mb: 2,
-            color: "#e0e0e0",
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
-          }}
-        >
-          <FolderIcon sx={{ color: '#888888', fontSize: 20 }} />
-          Project Files
-        </Typography>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          mb: 2 
+        }}>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 600,
+              fontSize: "16px",
+              color: "#e0e0e0",
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
+            }}
+          >
+            <FolderIcon sx={{ color: '#888888', fontSize: 20 }} />
+            Project Files
+          </Typography>
+          
+          <Tooltip title={isRefreshing ? "Refreshing..." : "Refresh file list"}>
+            <IconButton
+              onClick={handleRefresh}
+              disabled={isRefreshing || isLoading}
+              sx={{
+                color: '#888888',
+                '&:hover': {
+                  color: '#e0e0e0',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                },
+                '&:disabled': {
+                  color: '#444444',
+                },
+              }}
+            >
+              <RefreshIcon 
+                sx={{ 
+                  fontSize: 18,
+                  animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
+                  '@keyframes spin': {
+                    '0%': {
+                      transform: 'rotate(0deg)',
+                    },
+                    '100%': {
+                      transform: 'rotate(360deg)',
+                    },
+                  },
+                }} 
+              />
+            </IconButton>
+          </Tooltip>
+        </Box>
 
         {/* Selected Files Section */}
         {inchatFiles.length > 0 && (

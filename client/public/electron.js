@@ -273,7 +273,7 @@ async function ensurePythonEnvironment(progressCallback) {
   }
 }
 
-function startPythonAPI() {
+function startPythonAPI(projectPath = null) {
   return new Promise(async (resolve, reject) => {
     try {
       // Show progress dialog for runtime setup
@@ -294,9 +294,10 @@ function startPythonAPI() {
         ? path.join(__dirname, '../../api/app.py')
         : path.join(process.resourcesPath, 'api', 'app.py');
       
-      const workingDir = isDev 
+      // Use provided project path or fallback to original behavior
+      const workingDir = projectPath || (isDev 
         ? path.join(__dirname, '../../') 
-        : process.resourcesPath;
+        : process.resourcesPath);
       
       console.log('Starting Python API from:', apiPath);
       console.log('Working directory:', workingDir);
@@ -351,6 +352,9 @@ function startPythonAPI() {
         DYLD_LIBRARY_PATH: '/usr/local/lib:/opt/homebrew/lib',
         // Add conda environment activation
         CONDA_DEFAULT_ENV: 'aider-env',
+        // Tell the API to wait for project selection
+        NEWREV_WAIT_FOR_PROJECT: projectPath ? 'false' : 'true',
+        NEWREV_PROJECT_PATH: projectPath || '',
       };
       
       // Setup logging
@@ -365,7 +369,15 @@ function startPythonAPI() {
       const logMessage = (level, message) => {
         const timestamp = new Date().toISOString();
         const logLine = `[${timestamp}] [${level}] ${message}\n`;
-        logStream.write(logLine);
+        
+        // Only write to log stream if it's still writable
+        if (logStream && !logStream.destroyed && logStream.writable) {
+          try {
+            logStream.write(logLine);
+          } catch (error) {
+            console.error('Error writing to log stream:', error);
+          }
+        }
         
         // Send to renderer for real-time display
         if (mainWindow && mainWindow.webContents) {
@@ -378,8 +390,13 @@ function startPythonAPI() {
       };
 
       // Start the Python API process
+      // Always start from the API directory, not the project directory
+      const apiWorkingDir = isDev 
+        ? path.join(__dirname, '../../') 
+        : process.resourcesPath;
+        
       apiProcess = spawn(pythonCmd, [apiPath], {
-        cwd: workingDir,
+        cwd: apiWorkingDir,  // Use API directory as working directory
         env: env,
         stdio: ['pipe', 'pipe', 'pipe']
       });
@@ -390,7 +407,8 @@ function startPythonAPI() {
 
       logMessage('INFO', `Starting Python API with: ${pythonCmd}`);
       logMessage('INFO', `API Path: ${apiPath}`);
-      logMessage('INFO', `Working Directory: ${workingDir}`);
+      logMessage('INFO', `API Working Directory: ${apiWorkingDir}`);
+      logMessage('INFO', `Project Directory: ${projectPath || 'none - waiting for selection'}`);
 
       apiProcess.stdout.on('data', (data) => {
         const output = data.toString();
@@ -434,11 +452,19 @@ function startPythonAPI() {
 
       apiProcess.on('close', (code) => {
         console.log(`Python API process exited with code ${code}`);
-        logMessage('INFO', `Python API process exited with code ${code}`);
         
-        // Close log stream
-        if (logStream) {
+        // Close log stream first to prevent further writes
+        if (logStream && !logStream.destroyed) {
           logStream.end();
+        }
+        
+        // Log the exit message after ensuring we have proper error handling
+        if (mainWindow && mainWindow.webContents) {
+          mainWindow.webContents.send('backend-log', {
+            timestamp: new Date().toISOString(),
+            level: 'INFO',
+            message: `Python API process exited with code ${code}`
+          });
         }
         
         if (code !== 0) {
@@ -451,7 +477,16 @@ function startPythonAPI() {
           } else {
             errorMsg = `Python API exited with code ${code}.\n\nOutput: ${allOutput}\nErrors: ${allErrors}`;
           }
-          logMessage('ERROR', errorMsg);
+          
+          // Send error message to renderer instead of using logMessage
+          if (mainWindow && mainWindow.webContents) {
+            mainWindow.webContents.send('backend-log', {
+              timestamp: new Date().toISOString(),
+              level: 'ERROR',
+              message: errorMsg
+            });
+          }
+          
           reject(new Error(errorMsg));
         }
       });
@@ -459,7 +494,7 @@ function startPythonAPI() {
       // Timeout after 30 seconds with detailed error info
       setTimeout(() => {
         if (!hasStarted) {
-          const timeoutError = `Python API failed to start within 30 seconds.\n\nOutput: ${allOutput}\n\nErrors: ${allErrors}\n\nAPI Path: ${apiPath}\nWorking Dir: ${workingDir}\nPython Path: ${pythonPath}`;
+          const timeoutError = `Python API failed to start within 30 seconds.\n\nOutput: ${allOutput}\n\nErrors: ${allErrors}\n\nAPI Path: ${apiPath}\nAPI Working Dir: ${apiWorkingDir}\nProject Dir: ${projectPath || 'none'}\nPython Path: ${pythonCmd}`;
           reject(new Error(timeoutError));
         }
       }, 30000);
@@ -496,41 +531,47 @@ ipcMain.handle('select-directory', async () => {
   return result;
 });
 
+ipcMain.handle('select-project-directory', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+    title: 'Select Project Directory',
+    message: 'Choose the directory containing your code project'
+  });
+  return result;
+});
+
 ipcMain.handle('get-api-port', () => {
   return API_PORT;
 });
 
+ipcMain.handle('start-python-api', async (event, projectPath) => {
+  try {
+    console.log('Starting Python API for project:', projectPath);
+    
+    // Stop existing API if running
+    if (apiProcess) {
+      console.log('Stopping existing Python API...');
+      stopPythonAPI();
+      // Wait longer for cleanup to avoid port conflicts
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      console.log('Previous API stopped, starting new one...');
+    }
+    
+    // Start Python API with specific project path
+    await startPythonAPI(projectPath);
+    console.log('Python API started successfully for project');
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to start Python API:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // App event handlers
 app.whenReady().then(async () => {
-  try {
-    console.log('Starting Python API...');
-    await startPythonAPI();
-    console.log('Python API started successfully');
-    
-    createWindow();
-  } catch (error) {
-    console.error('Failed to start application:', error);
-    
-    // Show detailed error dialog with suggestions
-    let errorMessage;
-    if (error.message.includes('Python not found')) {
-      errorMessage = `Python installation not detected.\n\nCommon solutions:\n1. Install Python from python.org\n2. Install via Homebrew: brew install python\n3. Make sure Python is in your PATH\n4. Restart the application after installing Python`;
-    } else {
-      errorMessage = isDev 
-        ? `Development Error: ${error.message}\n\nTry running: pip install -r api/requirements.txt`
-        : `${error.message}\n\nSuggestions:\n1. Install Python dependencies: pip install flask flask-cors python-dotenv\n2. Make sure you're in a Git repository\n3. Restart the application`;
-    }
-    
-    dialog.showErrorBox(
-      'Python API Startup Error',
-      errorMessage
-    );
-    
-    // Don't quit immediately in development, allow user to fix and retry
-    if (!isDev) {
-      app.quit();
-    }
-  }
+  // Don't start Python API immediately - wait for project selection
+  console.log('Electron app ready - waiting for project selection before starting Python API');
+  createWindow();
 });
 
 app.on('window-all-closed', () => {

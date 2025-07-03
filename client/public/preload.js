@@ -5,6 +5,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
   getApiPort: () => ipcRenderer.invoke('get-api-port'),
+  selectProjectDirectory: () => ipcRenderer.invoke('select-project-directory'),
+  startPythonApi: (projectPath) => ipcRenderer.invoke('start-python-api', projectPath),
   
   // Platform info
   platform: process.platform,

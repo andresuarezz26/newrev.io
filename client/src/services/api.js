@@ -315,6 +315,79 @@ const api = {
       throw error;
     }
   },
+
+  // Initialize project with directory and API keys
+  initializeProject: async ({ projectPath, apiKeys, model }) => {
+    try {
+      const apiUrl = await getApiUrl();
+      const response = await axios.post(`${apiUrl}/initialize_project`, {
+        session_id: SESSION_ID,
+        project_path: projectPath,
+        api_keys: apiKeys,
+        model: model
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error initializing project:', error);
+      throw error;
+    }
+  },
+
+  // Update API keys
+  updateApiKeys: async (apiKeys) => {
+    try {
+      const apiUrl = await getApiUrl();
+      const response = await axios.post(`${apiUrl}/update_api_keys`, {
+        session_id: SESSION_ID,
+        api_keys: apiKeys
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating API keys:', error);
+      throw error;
+    }
+  },
+
+  // Update model
+  updateModel: async (model) => {
+    try {
+      const apiUrl = await getApiUrl();
+      const response = await axios.post(`${apiUrl}/update_model`, {
+        session_id: SESSION_ID,
+        model: model
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating model:', error);
+      throw error;
+    }
+  },
+
+  // Health check
+  healthCheck: async () => {
+    try {
+      const apiUrl = await getApiUrl();
+      const response = await axios.get(`${apiUrl}/health`);
+      return response.data;
+    } catch (error) {
+      console.error('Error checking API health:', error);
+      throw error;
+    }
+  },
+
+  // Refresh files
+  refreshFiles: async () => {
+    try {
+      const apiUrl = await getApiUrl();
+      const response = await axios.post(`${apiUrl}/refresh_files`, {
+        session_id: SESSION_ID
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error refreshing files:', error);
+      throw error;
+    }
+  },
 };
 
 export { 

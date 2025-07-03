@@ -29,7 +29,14 @@ from aider.main import main as cli_main
 from aider.scrape import Scraper
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app, resources={
+    r"/*": {
+        "origins": ["file://*", "http://localhost:*", "https://localhost:*", "*"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "Accept"],
+        "supports_credentials": True
+    }
+})
 
 # Store sessions by session_id
 sessions = {}
@@ -97,6 +104,12 @@ class AiderAPI:
         logger = logging.getLogger(__name__)
         logger.debug("\n=== Starting Coder Initialization ===")
         logger.debug(f"Current working directory: {os.getcwd()}")
+        
+        # Add default args to suppress warnings if no args provided
+        if args is None:
+            args = ['--no-show-model-warnings']
+        elif '--no-show-model-warnings' not in args:
+            args = ['--no-show-model-warnings'] + args
         
         try:
             # Check if we're in a git repo
@@ -236,8 +249,30 @@ def get_or_create_session(session_id, create=True):
     logger.debug(f"get_or_create_session called with ID: {session_id}")
     logger.debug(f"Current sessions: {list(sessions.keys())}")
     
+    # Check if we're waiting for project selection
+    wait_for_project = os.environ.get('NEWREV_WAIT_FOR_PROJECT', 'false').lower() == 'true'
+    
     if session_id not in sessions and create:
         logger.debug(f"Creating new session for ID: {session_id}")
+        
+        if wait_for_project:
+            # Create a minimal session without coder - waiting for project selection
+            logger.debug("Creating minimal session - waiting for project selection")
+            sessions[session_id] = {
+                'coder': None,
+                'messages': [
+                    {'role': 'info', 'content': 'Welcome to NewRev! Please select a project directory to get started.'},
+                    {'role': 'assistant', 'content': 'Select a Git repository to begin coding with AI assistance.'}
+                ],
+                'files': [],
+                'last_aider_commit_hash': None,
+                'input_history': [],
+                'created_at': time.time(),
+                'waiting_for_project': True
+            }
+            logger.debug("Created minimal session waiting for project selection")
+            return sessions[session_id]
+        
         try:
             # Try to load existing session data
             saved_data = load_session(session_id)
@@ -457,16 +492,24 @@ def get_files():
         coder = session['coder']
         
         try:
+            # Force refresh the coder's file cache to pick up any new/deleted files
+            if hasattr(coder, 'repo') and coder.repo:
+                # Refresh the repository to pick up new files
+                try:
+                    coder.repo.refresh_aider_ignore()
+                except AttributeError:
+                    # If refresh method doesn't exist, that's ok
+                    pass
+            
             all_files = coder.get_all_relative_files()
             inchat_files = coder.get_inchat_relative_files()
-            logger.debug(f"Files retrieved - All: {all_files}, InChat: {inchat_files}")
+            logger.debug(f"Files retrieved - All: {len(all_files)} files, InChat: {len(inchat_files)} files")
             
             response = {
                 'status': 'success',
                 'all_files': all_files,
                 'inchat_files': inchat_files
             }
-            logger.debug(f"Returning response: {response}")
             
             return jsonify(response)
             
@@ -480,6 +523,81 @@ def get_files():
             
     except Exception as e:
         logger.error(f"Unexpected error in get_files: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Unexpected error: {str(e)}'
+        }), 500
+
+@app.route('/api/refresh_files', methods=['POST'])
+def refresh_files():
+    """Refresh and get all files and in-chat files - more explicit refresh endpoint"""
+    logger = logging.getLogger(__name__)
+    logger.debug("refresh_files endpoint called")
+    
+    try:
+        data = request.json
+        session_id = data.get('session_id')
+        
+        if not session_id:
+            logger.error("No session ID provided")
+            return jsonify({'status': 'error', 'message': 'Session ID is required'}), 400
+        
+        session = get_or_create_session(session_id)
+        
+        if not session:
+            logger.error(f"No session found for ID: {session_id}")
+            return jsonify({'status': 'error', 'message': 'Session not found'}), 404
+        
+        coder = session['coder']
+        
+        if not coder:
+            logger.error("No coder instance in session")
+            return jsonify({'status': 'error', 'message': 'No active project'}), 400
+        
+        try:
+            # Force refresh the coder's file scanning
+            if hasattr(coder, 'repo') and coder.repo:
+                try:
+                    # Clear any cached file lists
+                    coder.repo.refresh_aider_ignore()
+                    logger.debug("Refreshed aider ignore patterns")
+                except AttributeError:
+                    logger.debug("refresh_aider_ignore method not available")
+                    pass
+                
+                # Force re-scan the working directory
+                try:
+                    if hasattr(coder.repo, 'get_tracked_files'):
+                        coder.repo.get_tracked_files.cache_clear()
+                        logger.debug("Cleared tracked files cache")
+                except AttributeError:
+                    pass
+            
+            # Get fresh file lists
+            all_files = coder.get_all_relative_files()
+            inchat_files = coder.get_inchat_relative_files()
+            logger.debug(f"Refreshed files - All: {len(all_files)} files, InChat: {len(inchat_files)} files")
+            
+            response = {
+                'status': 'success',
+                'all_files': all_files,
+                'inchat_files': inchat_files,
+                'message': 'Files refreshed successfully'
+            }
+            
+            return jsonify(response)
+            
+        except Exception as e:
+            logger.error(f"Error refreshing files: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return jsonify({
+                'status': 'error',
+                'message': f'Error refreshing files: {str(e)}'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Unexpected error in refresh_files: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({
             'status': 'error',
@@ -874,6 +992,305 @@ def set_mode():
             'message': f'Unexpected error: {str(e)}'
         }), 500
 
+@app.route('/api/initialize_project', methods=['POST'])
+def initialize_project():
+    """Initialize project with directory and API keys"""
+    logger = logging.getLogger(__name__)
+    logger.debug("initialize_project endpoint called")
+    
+    try:
+        data = request.json
+        session_id = data.get('session_id')
+        project_path = data.get('project_path')
+        api_keys = data.get('api_keys', {})
+        model = data.get('model')
+        
+        logger.debug(f"Initialize project - Session: {session_id}, Path: {project_path}, Model: {model}")
+        
+        if not session_id or not project_path:
+            logger.error("Session ID and project path are required")
+            return jsonify({'status': 'error', 'message': 'Session ID and project path are required'}), 400
+        
+        # Validate project path
+        if not os.path.exists(project_path):
+            logger.error(f"Project path does not exist: {project_path}")
+            return jsonify({'status': 'error', 'message': f'Project path does not exist: {project_path}'}), 400
+        
+        # Verify it's a git repository
+        try:
+            from git import Repo
+            repo = Repo(project_path, search_parent_directories=False)
+            logger.debug(f"Verified git repository at: {project_path}")
+        except Exception as e:
+            logger.error(f"Not a git repository: {project_path}")
+            return jsonify({'status': 'error', 'message': f'Not a git repository: {project_path}'}), 400
+        
+        # Store original working directory and change temporarily
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(project_path)
+            logger.debug(f"Changed working directory to: {project_path}")
+            # Set environment variables for API keys
+            for key, value in api_keys.items():
+                if value:
+                    os.environ[key] = value
+                    logger.debug(f"Set environment variable: {key}")
+            
+            # Build arguments for coder initialization
+            args = ['--no-show-model-warnings']  # Suppress model warnings
+            if model:
+                args.extend(['--model', model])
+                logger.debug(f"Using model: {model}")
+            else:
+                # Use a default model that doesn't require API keys for initial setup
+                args.extend(['--model', 'gpt-3.5-turbo'])
+                logger.debug("Using default model: gpt-3.5-turbo")
+            
+            # Create new session with project-specific coder
+            if session_id in sessions:
+                del sessions[session_id]  # Remove old session
+            
+            # Initialize new coder in the project directory
+            logger.debug(f"Initializing coder with args: {args}")
+            coder = AiderAPI.initialize_coder(args)
+            logger.debug("Coder initialized successfully")
+            
+            # Get files from the new project
+            all_files = coder.get_all_relative_files()
+            inchat_files = coder.get_inchat_relative_files()
+            
+            # Create new session
+            sessions[session_id] = {
+                'coder': coder,
+                'messages': [],
+                'files': inchat_files,
+                'last_aider_commit_hash': coder.last_aider_commit_hash,
+                'input_history': list(coder.io.get_input_history()),
+                'created_at': time.time(),
+                'project_path': project_path,
+                'api_keys': api_keys,
+                'model': model
+            }
+            
+            # Add initial messages
+            announcements = AiderAPI.get_announcements(coder)
+            sessions[session_id]['messages'].append({
+                'role': 'info', 
+                'content': '\n'.join(announcements)
+            })
+            sessions[session_id]['messages'].append({
+                'role': 'assistant', 
+                'content': f'Project initialized at {project_path}. How can I help you?'
+            })
+            
+            # Save session
+            save_session(session_id, sessions[session_id])
+            
+            return jsonify({
+                'status': 'success',
+                'message': f'Project initialized at {project_path}',
+                'project_path': project_path,
+                'files': {
+                    'all_files': all_files,
+                    'inchat_files': inchat_files
+                },
+                'file_count': len(all_files)
+            })
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize project: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return jsonify({
+                'status': 'error',
+                'message': f'Failed to initialize project: {str(e)}'
+            }), 500
+        finally:
+            # Always restore original working directory
+            os.chdir(original_cwd)
+            logger.debug(f"Restored working directory to: {original_cwd}")
+            
+    except Exception as e:
+        logger.error(f"Unexpected error in initialize_project: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Unexpected error: {str(e)}'
+        }), 500
+
+@app.route('/api/update_api_keys', methods=['POST'])
+def update_api_keys():
+    """Update API keys for the current session"""
+    logger = logging.getLogger(__name__)
+    logger.debug("update_api_keys endpoint called")
+    
+    try:
+        data = request.json
+        session_id = data.get('session_id')
+        api_keys = data.get('api_keys', {})
+        
+        if not session_id:
+            logger.error("Session ID is required")
+            return jsonify({'status': 'error', 'message': 'Session ID is required'}), 400
+        
+        session = sessions.get(session_id)
+        if not session:
+            logger.error(f"Session not found: {session_id}")
+            return jsonify({'status': 'error', 'message': 'Session not found'}), 404
+        
+        # Update environment variables
+        for key, value in api_keys.items():
+            if value:
+                os.environ[key] = value
+                logger.debug(f"Updated environment variable: {key}")
+            elif key in os.environ:
+                del os.environ[key]
+                logger.debug(f"Removed environment variable: {key}")
+        
+        # Update session data
+        session['api_keys'] = api_keys
+        save_session(session_id, session)
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'API keys updated successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating API keys: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error updating API keys: {str(e)}'
+        }), 500
+
+@app.route('/api/update_model', methods=['POST'])
+def update_model():
+    """Update the model for the current session"""
+    logger = logging.getLogger(__name__)
+    logger.debug("update_model endpoint called")
+    
+    try:
+        data = request.json
+        session_id = data.get('session_id')
+        model = data.get('model')
+        
+        if not session_id or not model:
+            logger.error("Session ID and model are required")
+            return jsonify({'status': 'error', 'message': 'Session ID and model are required'}), 400
+        
+        session = sessions.get(session_id)
+        if not session:
+            logger.error(f"Session not found: {session_id}")
+            return jsonify({'status': 'error', 'message': 'Session not found'}), 404
+        
+        current_coder = session['coder']
+        
+        try:
+            # Create new coder with updated model
+            args = ['--model', model]
+            
+            # Get project path for working directory
+            project_path = session.get('project_path', os.getcwd())
+            original_cwd = os.getcwd()
+            
+            # Ensure we're in the right directory
+            if project_path != original_cwd:
+                os.chdir(project_path)
+            
+            try:
+                # Initialize new coder with the new model
+                new_coder = AiderAPI.initialize_coder(args)
+                
+                # Copy file state from old coder
+                for fname in current_coder.get_inchat_relative_files():
+                    new_coder.add_rel_fname(fname)
+                
+                # Update session with new coder
+                session['coder'] = new_coder
+                session['model'] = model
+                
+                # Add info message
+                session['messages'].append({
+                    'role': 'info',
+                    'content': f'Switched to model: {model}'
+                })
+                
+                # Save session
+                save_session(session_id, session)
+                
+                logger.debug(f"Successfully switched to model: {model}")
+                
+                return jsonify({
+                    'status': 'success',
+                    'message': f'Successfully switched to model: {model}',
+                    'model': model
+                })
+                
+            finally:
+                # Restore working directory
+                if project_path != original_cwd:
+                    os.chdir(original_cwd)
+                
+        except Exception as e:
+            logger.error(f"Failed to switch model: {str(e)}")
+            return jsonify({
+                'status': 'error',
+                'message': f'Failed to switch model: {str(e)}'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error updating model: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error updating model: {str(e)}'
+        }), 500
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Simple health check endpoint"""
+    return jsonify({
+        'status': 'success',
+        'message': 'API is running',
+        'timestamp': time.time()
+    })
+
+@app.route('/api/get_available_models', methods=['GET'])
+def get_available_models():
+    """Get list of available models and their aliases"""
+    try:
+        # Import the models module to get available models
+        from aider.models import MODEL_ALIASES
+        
+        # Get model aliases
+        aliases = {}
+        for alias, model_name in MODEL_ALIASES.items():
+            aliases[alias] = model_name
+        
+        # Add some common model examples
+        common_models = {
+            "claude-3-5-sonnet": "claude-3-5-sonnet-20241022",
+            "claude-3-5-haiku": "claude-3-5-haiku-20241022", 
+            "claude-3-opus": "claude-3-opus-20240229",
+            "gpt-4o": "gpt-4o",
+            "gpt-4o-mini": "gpt-4o-mini",
+            "gpt-3.5-turbo": "gpt-3.5-turbo",
+            "deepseek-chat": "deepseek/deepseek-chat",
+            "deepseek-coder": "deepseek/deepseek-coder",
+            "gemini-2.0-flash": "openrouter/google/gemini-2.0-flash-exp",
+        }
+        
+        return jsonify({
+            'status': 'success',
+            'aliases': aliases,
+            'common_models': common_models
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error retrieving models: {str(e)}'
+        }), 500
+
 def main():
     """
     Main function to start the Aider API server.
@@ -881,28 +1298,49 @@ def main():
     """
     print("=== Starting Aider API Server ===")
     
-    # Get the directory where the user ran 'newrev-api'
-    current_working_directory = os.getcwd()
-    print(f"Current working directory: {current_working_directory}")
+    # Check if we should wait for project selection
+    wait_for_project = os.environ.get('NEWREV_WAIT_FOR_PROJECT', 'false').lower() == 'true'
+    project_path = os.environ.get('NEWREV_PROJECT_PATH', '')
     
-    # Check if we're in a git repo
-    try:
-        from git import Repo
-        # Search for a git repo from the current working directory
-        repo = Repo(current_working_directory, search_parent_directories=True)
-        print(f"Found git repository at: {repo.git_dir}")
-    except Exception as e:
-        print(f"Failed to find git repository: {e}")
-        print("The API server must be run from within a git repository. Exiting.")
-        sys.exit(1) # Use sys.exit(1) for a clean exit on error
+    if wait_for_project:
+        print("Waiting for project selection - git repository check skipped")
+    else:
+        # Get the directory where the user ran 'newrev-api' or use provided project path
+        current_working_directory = project_path or os.getcwd()
+        print(f"Current working directory: {current_working_directory}")
+        
+        # Change to the project directory if provided
+        if project_path and os.path.exists(project_path):
+            os.chdir(project_path)
+            print(f"Changed working directory to: {project_path}")
+        
+        # Check if we're in a git repo
+        try:
+            from git import Repo
+            # Search for a git repo from the current working directory
+            repo = Repo(current_working_directory, search_parent_directories=True)
+            print(f"Found git repository at: {repo.git_dir}")
+        except Exception as e:
+            if not wait_for_project:
+                print(f"Failed to find git repository: {e}")
+                print("The API server must be run from within a git repository. Exiting.")
+                sys.exit(1) # Use sys.exit(1) for a clean exit on error
     
     # Run the server
     print("Starting Flask server...")
+    
+    # Check if we're running in Electron context (either waiting for project or with project path)
+    is_electron_context = (
+        os.environ.get('NEWREV_WAIT_FOR_PROJECT', 'false').lower() == 'true' or 
+        os.environ.get('NEWREV_PROJECT_PATH', '') != ''
+    )
+    
     app.run(
         host='0.0.0.0',
         port=5000, # Ensure this matches CLIENT_PORT in install.sh if you intend to configure it there
         debug=True, # Set to False for production
-        threaded=True
+        threaded=True,
+        use_reloader=not is_electron_context  # Disable reloader in Electron to prevent restarts
     )
 
 # This block ensures 'main()' is called when the script is run as an executable
