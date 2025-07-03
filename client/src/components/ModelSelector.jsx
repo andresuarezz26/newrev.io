@@ -4,16 +4,8 @@ import {
   Select,
   MenuItem,
   Typography,
-  Box,
-  Chip,
-  Tooltip
+  Box
 } from '@mui/material';
-import {
-  Psychology as PsychologyIcon,
-  Speed as SpeedIcon,
-  MonetizationOn as MonetizationOnIcon,
-  Computer as ComputerIcon
-} from '@mui/icons-material';
 
 const MODEL_CONFIGS = [
   // OpenAI Models
@@ -162,28 +154,7 @@ const ModelSelector = ({ selectedModel, onModelChange, apiKeys = {} }) => {
     });
   };
 
-  const getModelIcon = (tier) => {
-    switch (tier) {
-      case 'premium': return <PsychologyIcon sx={{ fontSize: 16 }} />;
-      case 'standard': return <SpeedIcon sx={{ fontSize: 16 }} />;
-      case 'free': return <ComputerIcon sx={{ fontSize: 16 }} />;
-      default: return <PsychologyIcon sx={{ fontSize: 16 }} />;
-    }
-  };
-
-  const getSpeedColor = (speed) => {
-    switch (speed) {
-      case 'very-fast': return '#4caf50';
-      case 'fast': return '#8bc34a';
-      case 'medium': return '#ff9800';
-      case 'slow': return '#f44336';
-      case 'variable': return '#9e9e9e';
-      default: return '#9e9e9e';
-    }
-  };
-
   const availableModels = getAvailableModels();
-  const currentModelConfig = MODEL_CONFIGS.find(m => m.value === currentModel);
 
   return (
     <Box sx={{ minWidth: 180 }}>
@@ -246,38 +217,13 @@ const ModelSelector = ({ selectedModel, onModelChange, apiKeys = {} }) => {
                 }
               }}
             >
-              <Box sx={{ width: '100%' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                  {getModelIcon(model.tier)}
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 500,
-                    fontSize: '11px',
-                    fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif'
-                  }}>
-                    {model.label}
-                  </Typography>
-                  <Box sx={{ flex: 1 }} />
-                  <Chip
-                    label={model.speed}
-                    size="small"
-                    sx={{
-                      height: 16,
-                      fontSize: '10px',
-                      backgroundColor: getSpeedColor(model.speed),
-                      color: 'white',
-                      '& .MuiChip-label': { px: 1 }
-                    }}
-                  />
-                </Box>
-                <Typography variant="caption" sx={{ 
-                  color: '#888', 
-                  display: 'block',
-                  fontSize: '10px',
-                  fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif'
-                }}>
-                  {model.provider} • {model.description}
-                </Typography>
-              </Box>
+              <Typography variant="body2" sx={{ 
+                fontWeight: 500,
+                fontSize: '11px',
+                fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif'
+              }}>
+                {model.label}
+              </Typography>
             </MenuItem>
           ))}
           
@@ -291,30 +237,6 @@ const ModelSelector = ({ selectedModel, onModelChange, apiKeys = {} }) => {
         </Select>
       </FormControl>
 
-      {/* Current model info */}
-      {currentModelConfig && (
-        <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="caption" sx={{ 
-            color: '#888',
-            fontSize: '9px',
-            fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif'
-          }}>
-            {currentModelConfig.provider}
-          </Typography>
-          <Chip
-            label={currentModelConfig.tier}
-            size="small"
-            sx={{
-              height: 14,
-              fontSize: '8px',
-              backgroundColor: currentModelConfig.tier === 'premium' ? '#7b1fa2' : 
-                              currentModelConfig.tier === 'standard' ? '#1976d2' : '#388e3c',
-              color: 'white',
-              '& .MuiChip-label': { px: 0.5, fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif' }
-            }}
-          />
-        </Box>
-      )}
     </Box>
   );
 };
