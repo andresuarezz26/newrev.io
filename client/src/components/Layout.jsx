@@ -15,6 +15,9 @@ import FileManager from "./FileManager"
 import WebPageAdder from "./WebPageAdder"
 import CodeEditor from "./CodeEditor"
 import LogViewer from "./LogViewer"
+import ProjectSelector from "./ProjectSelector"
+import ApiKeyManager from "./ApiKeyManager"
+import ModelSelector from "./ModelSelector"
 import api from "../services/api"
 
 const drawerWidth = 350
@@ -31,6 +34,14 @@ const Layout = () => {
   const [chatWidth, setChatWidth] = useState(defaultChatWidth)
   const [isDragging, setIsDragging] = useState(false)
   const [showLogs, setShowLogs] = useState(false)
+  
+  // New state for project management
+  const [projectSelectorOpen, setProjectSelectorOpen] = useState(false)
+  const [apiKeyManagerOpen, setApiKeyManagerOpen] = useState(false)
+  const [selectedProject, setSelectedProject] = useState('')
+  const [apiKeys, setApiKeys] = useState({})
+  const [selectedModel, setSelectedModel] = useState('claude-3-5-sonnet-20241022')
+  const [isInitialized, setIsInitialized] = useState(false)
   const dragStartX = useRef(0)
   const dragStartWidth = useRef(0)
 
@@ -59,6 +70,67 @@ const Layout = () => {
   const handleConfigOpen = () => setConfigOpen(true)
   const handleConfigClose = () => setConfigOpen(false)
   const handlePreviewUrlChange = (e) => setPreviewUrl(e.target.value)
+  
+  // New handlers for project management
+  const handleProjectSelect = async (projectPath) => {
+    setSelectedProject(projectPath)
+    try {
+      console.log('Starting project initialization for:', projectPath)
+      
+      // Start Python API with the selected project
+      if (window.electronAPI?.startPythonApi) {
+        console.log('Starting Python API...')
+        const result = await window.electronAPI.startPythonApi(projectPath)
+        if (!result.success) {
+          throw new Error(`Python API failed to start: ${result.error}`)
+        }
+        console.log('Python API started successfully')
+        
+        // Wait a moment for the API to be fully ready
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        
+        // Health check to ensure API is responding
+        console.log('Checking API health...')
+        await api.healthCheck()
+        console.log('API health check passed')
+      }
+      
+      // Initialize the backend with the selected project directory
+      console.log('Initializing project with backend...')
+      await api.initializeProject({ projectPath, apiKeys, model: selectedModel })
+      console.log('Project initialized successfully')
+      setIsInitialized(true)
+    } catch (error) {
+      console.error('Failed to initialize project:', error)
+      alert(`Failed to initialize project: ${error.message}`)
+      // Reset state on error
+      setSelectedProject('')
+      setIsInitialized(false)
+    }
+  }
+  
+  const handleApiKeySave = async (keys) => {
+    setApiKeys(keys)
+    if (selectedProject) {
+      try {
+        await api.updateApiKeys(keys)
+      } catch (error) {
+        console.error('Failed to update API keys:', error)
+      }
+    }
+  }
+  
+  const handleModelChange = async (model) => {
+    setSelectedModel(model)
+    if (isInitialized) {
+      try {
+        await api.updateModel(model)
+      } catch (error) {
+        console.error('Failed to update model:', error)
+        alert('Failed to update model. Please try again.')
+      }
+    }
+  }
 
   const handleDragStart = (e) => {
     setIsDragging(true)
@@ -107,10 +179,36 @@ const Layout = () => {
       }
     }
   }, [])
+  
+  // Load saved API keys on startup
+  useEffect(() => {
+    const savedKeys = {}
+    const keyTypes = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'DEEPSEEK_API_KEY', 'OPENROUTER_API_KEY', 'OLLAMA_API_BASE']
+    
+    keyTypes.forEach(key => {
+      const saved = localStorage.getItem(key)
+      if (saved) {
+        savedKeys[key] = saved
+      }
+    })
+    
+    setApiKeys(savedKeys)
+  }, [])
+  
+  // Show project selector on first launch
+  useEffect(() => {
+    if (!isInitialized && !selectedProject) {
+      setProjectSelectorOpen(true)
+    }
+  }, [])
 
   const drawer = (
     <Box sx={{ p: 2 }}>
-      <FileManager onFileSelect={handleFileSelect} />
+      <FileManager 
+        onFileSelect={handleFileSelect} 
+        selectedProject={selectedProject}
+        isInitialized={isInitialized}
+      />
     </Box>
   )
 
@@ -148,6 +246,16 @@ const Layout = () => {
             Newrev.io
           </Typography>
           <Box sx={{ flexGrow: 1 }} />
+          
+          {/* Model Selector */}
+          <Box sx={{ mr: 2 }}>
+            <ModelSelector 
+              selectedModel={selectedModel}
+              onModelChange={handleModelChange}
+              apiKeys={apiKeys}
+            />
+          </Box>
+          
           <ToggleButtonGroup
             value={mode}
             exclusive
@@ -300,11 +408,13 @@ const Layout = () => {
       <Dialog 
         open={configOpen} 
         onClose={handleConfigClose}
+        maxWidth="md"
+        fullWidth
         PaperProps={{
           sx: {
             backgroundColor: '#1e1e1e',
             color: '#e0e0e0',
-            minWidth: '400px',
+            minWidth: '500px',
           }
         }}
       >
@@ -338,6 +448,49 @@ const Layout = () => {
               },
             }}
           />
+          
+          <Box sx={{ mt: 3 }}>
+            <Button
+              variant="outlined"
+              onClick={() => setApiKeyManagerOpen(true)}
+              sx={{
+                borderColor: '#404040',
+                color: '#e0e0e0',
+                '&:hover': {
+                  borderColor: '#505050',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                }
+              }}
+            >
+              Manage API Keys
+            </Button>
+          </Box>
+          
+          <Box sx={{ mt: 2 }}>
+            <Button
+              variant="outlined"
+              onClick={() => setProjectSelectorOpen(true)}
+              sx={{
+                borderColor: '#404040',
+                color: '#e0e0e0',
+                '&:hover': {
+                  borderColor: '#505050',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                }
+              }}
+            >
+              Change Project Directory
+            </Button>
+          </Box>
+          
+          {selectedProject && (
+            <Box sx={{ mt: 2, p: 2, backgroundColor: '#252525', borderRadius: 1 }}>
+              <Typography variant="caption" sx={{ color: '#888' }}>Current Project:</Typography>
+              <Typography variant="body2" sx={{ fontFamily: 'Monaco, Consolas, monospace', mt: 0.5 }}>
+                {selectedProject}
+              </Typography>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions sx={{ borderTop: '1px solid #404040', p: 2 }}>
           <Button 
@@ -354,6 +507,20 @@ const Layout = () => {
         </DialogActions>
       </Dialog>
 
+      {/* Project Selector */}
+      <ProjectSelector 
+        open={projectSelectorOpen}
+        onClose={() => setProjectSelectorOpen(false)}
+        onSelectProject={handleProjectSelect}
+      />
+      
+      {/* API Key Manager */}
+      <ApiKeyManager 
+        open={apiKeyManagerOpen}
+        onClose={() => setApiKeyManagerOpen(false)}
+        onSave={handleApiKeySave}
+      />
+      
       {/* Log Viewer */}
       <LogViewer 
         open={showLogs} 
