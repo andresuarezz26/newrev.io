@@ -22,6 +22,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import api, { addEventListener, removeEventListener, SESSION_ID } from "../services/api"
 import DiffViewer from './DiffViewer'
+import ModelSelector from './ModelSelector'
 
 const modeOptions = [
   {
@@ -539,7 +540,7 @@ const StreamingContent = memo(({ content, onCopy }) => {
 
 const STORAGE_KEY = 'chat_messages'
 
-const ChatInterface = () => {
+const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
   const [messages, setMessages] = useState(() => {
     // Load messages from localStorage on initial render
     const savedMessages = localStorage.getItem(STORAGE_KEY)
@@ -920,8 +921,15 @@ const ChatInterface = () => {
                 {isLoading ? <CircularProgress size={20} sx={{ color: "#fff" }} /> : <SendIcon fontSize="small" />}
               </IconButton>
             </Box>
-            <Box sx={{ display: "flex", justifyContent: "flex-start", mt: 1 }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mt: 1, gap: 2 }}>
               <CursorModeSelector value={mode} onChange={handleModeChange} />
+              <Box sx={{ minWidth: 180 }}>
+                <ModelSelector 
+                  selectedModel={selectedModel}
+                  onModelChange={onModelChange}
+                  apiKeys={apiKeys || {}}
+                />
+              </Box>
             </Box>
           </Box>
         </>

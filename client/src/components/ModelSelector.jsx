@@ -186,13 +186,15 @@ const ModelSelector = ({ selectedModel, onModelChange, apiKeys = {} }) => {
   const currentModelConfig = MODEL_CONFIGS.find(m => m.value === currentModel);
 
   return (
-    <Box sx={{ minWidth: 200 }}>
+    <Box sx={{ minWidth: 180 }}>
       <FormControl fullWidth size="small">
         <Select
           value={currentModel}
           onChange={handleModelChange}
           sx={{
             color: '#e0e0e0',
+            backgroundColor: '#2a2a2a',
+            borderRadius: '6px',
             '& .MuiOutlinedInput-notchedOutline': {
               borderColor: '#404040',
             },
@@ -205,16 +207,20 @@ const ModelSelector = ({ selectedModel, onModelChange, apiKeys = {} }) => {
             '& .MuiSelect-icon': {
               color: '#e0e0e0',
             },
-            fontSize: '13px',
-            height: '32px'
+            fontSize: '11px',
+            height: '28px',
+            fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
+            fontWeight: 500
           }}
           MenuProps={{
             PaperProps: {
               sx: {
-                backgroundColor: '#1e1e1e',
+                backgroundColor: '#2a2a2a',
                 color: '#e0e0e0',
                 border: '1px solid #404040',
-                maxHeight: 300
+                borderRadius: '8px',
+                maxHeight: 300,
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
               }
             }
           }}
@@ -224,17 +230,30 @@ const ModelSelector = ({ selectedModel, onModelChange, apiKeys = {} }) => {
               key={model.value} 
               value={model.value}
               sx={{
-                fontSize: '13px',
-                py: 1,
+                fontSize: '11px',
+                py: 0.5,
+                px: 1.5,
+                minHeight: '32px',
+                fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif',
                 '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                  backgroundColor: '#333333'
+                },
+                '&.Mui-selected': {
+                  backgroundColor: '#0066cc',
+                  '&:hover': {
+                    backgroundColor: '#0066cc'
+                  }
                 }
               }}
             >
               <Box sx={{ width: '100%' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                   {getModelIcon(model.tier)}
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  <Typography variant="body2" sx={{ 
+                    fontWeight: 500,
+                    fontSize: '11px',
+                    fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif'
+                  }}>
                     {model.label}
                   </Typography>
                   <Box sx={{ flex: 1 }} />
@@ -250,7 +269,12 @@ const ModelSelector = ({ selectedModel, onModelChange, apiKeys = {} }) => {
                     }}
                   />
                 </Box>
-                <Typography variant="caption" sx={{ color: '#888', display: 'block' }}>
+                <Typography variant="caption" sx={{ 
+                  color: '#888', 
+                  display: 'block',
+                  fontSize: '10px',
+                  fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif'
+                }}>
                   {model.provider} • {model.description}
                 </Typography>
               </Box>
@@ -269,20 +293,24 @@ const ModelSelector = ({ selectedModel, onModelChange, apiKeys = {} }) => {
 
       {/* Current model info */}
       {currentModelConfig && (
-        <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="caption" sx={{ color: '#888' }}>
+        <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="caption" sx={{ 
+            color: '#888',
+            fontSize: '9px',
+            fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif'
+          }}>
             {currentModelConfig.provider}
           </Typography>
           <Chip
             label={currentModelConfig.tier}
             size="small"
             sx={{
-              height: 16,
-              fontSize: '10px',
+              height: 14,
+              fontSize: '8px',
               backgroundColor: currentModelConfig.tier === 'premium' ? '#7b1fa2' : 
                               currentModelConfig.tier === 'standard' ? '#1976d2' : '#388e3c',
               color: 'white',
-              '& .MuiChip-label': { px: 1 }
+              '& .MuiChip-label': { px: 0.5, fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif' }
             }}
           />
         </Box>

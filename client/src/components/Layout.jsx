@@ -17,7 +17,6 @@ import CodeEditor from "./CodeEditor"
 import LogViewer from "./LogViewer"
 import ProjectSelector from "./ProjectSelector"
 import ApiKeyManager from "./ApiKeyManager"
-import ModelSelector from "./ModelSelector"
 import api from "../services/api"
 
 const drawerWidth = 350
@@ -249,15 +248,6 @@ const Layout = () => {
           </Typography>
           <Box sx={{ flexGrow: 1 }} />
           
-          {/* Model Selector */}
-          <Box sx={{ mr: 2 }}>
-            <ModelSelector 
-              selectedModel={selectedModel}
-              onModelChange={handleModelChange}
-              apiKeys={apiKeys}
-            />
-          </Box>
-          
           <ToggleButtonGroup
             value={mode}
             exclusive
@@ -400,7 +390,11 @@ const Layout = () => {
             backgroundColor: "#1e1e1e",
           }}
         >
-          <ChatInterface />
+          <ChatInterface 
+            selectedModel={selectedModel}
+            onModelChange={handleModelChange}
+            apiKeys={apiKeys}
+          />
         </Box>
       </Box>
 
