@@ -10,21 +10,30 @@ import {
 const MODEL_CONFIGS = [
   // OpenAI Models
   {
-    value: 'gpt-4o',
-    label: 'GPT-4o',
+    value: 'gpt-4.1',
+    label: 'GPT-41',
     provider: 'OpenAI',
-    description: 'Latest GPT-4 optimized model',
+    description: 'Well-rounded, good at most things. Be in control.',
     tier: 'premium',
     speed: 'fast',
     requiresKey: 'OPENAI_API_KEY'
   },
   {
-    value: 'o3-mini',
-    label: 'o3-mini',
+    value: 'gpt-4o',
+    label: 'GPT-4o',
     provider: 'OpenAI',
-    description: 'Latest reasoning model',
+    description: '',
     tier: 'premium',
-    speed: 'medium',
+    speed: 'fast',
+    requiresKey: 'OPENAI_API_KEY'
+  },
+  {
+    value: 'o3',
+    label: 'o3',
+    provider: 'OpenAI',
+    description: 'Complex problems, difficult bugs, deep reasoning. Slow.',
+    tier: 'premium',
+    speed: 'slow',
     requiresKey: 'OPENAI_API_KEY'
   },
   {
@@ -85,6 +94,15 @@ const MODEL_CONFIGS = [
     speed: 'fast',
     requiresKey: 'DEEPSEEK_API_KEY'
   },
+  {
+    value: 'deepseek-reasoner',
+    label: 'DeepSeek Reasoner',
+    provider: 'DeepSeek',
+    description: '',
+    tier: 'standard',
+    speed: 'slow',
+    requiresKey: 'DEEPSEEK_API_KEY'
+  },
   
   // OpenRouter Models
   {
@@ -102,6 +120,24 @@ const MODEL_CONFIGS = [
     provider: 'Anthropic (via OpenRouter)',
     description: 'Via OpenRouter',
     tier: 'premium',
+    speed: 'fast',
+    requiresKey: 'OPENROUTER_API_KEY'
+  },
+  {
+    value: 'openrouter/deepseek/deepseek-r1-0528-qwen3-8b:free',
+    label: 'Deepseek R1 0528 Qwen3 8B (free)',
+    provider: 'DeepSeek',
+    description: 'Via OpenRouter',
+    tier: 'free',
+    speed: 'slow',
+    requiresKey: 'OPENROUTER_API_KEY'
+  },
+  {
+    value: 'openrouter/deepseek/deepseek-chat:free',
+    label: 'Deepseek Chat (free)',
+    provider: 'DeepSeek',
+    description: 'Via OpenRouter',
+    tier: 'free',
     speed: 'fast',
     requiresKey: 'OPENROUTER_API_KEY'
   },
