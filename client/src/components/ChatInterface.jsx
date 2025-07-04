@@ -650,7 +650,7 @@ const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
         console.log('AI Reflection info:', data.message)
         setMessages((prev) => [...prev, { 
           role: "info", 
-          content: `🤔 AI Reflection ${data.reflection_num}/3: ${data.message}` 
+          content: `${data.message}` 
         }])
       }
     }

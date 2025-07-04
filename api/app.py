@@ -53,6 +53,9 @@ SESSIONS_DIR.mkdir(exist_ok=True)
 
 def save_session(session_id, session_data):
     """Save session data to disk"""
+    # Ensure the sessions directory exists
+    SESSIONS_DIR.mkdir(exist_ok=True)
+    
     session_file = SESSIONS_DIR / f"{session_id}.json"
     # Convert coder object to a serializable format
     serializable_data = {
@@ -273,7 +276,7 @@ class AiderAPI:
                                 if session_id in sessions:
                                     sessions[session_id]['messages'].append({
                                         'role': 'info', 
-                                        'content': f"🤔 AI Reflection {num_reflections}/3: {coder.reflected_message}"
+                                        'content': f"{coder.reflected_message}"
                                     })
                                     logger.error(f"💾 Added reflection to session messages")
                                 
