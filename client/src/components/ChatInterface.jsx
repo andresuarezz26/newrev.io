@@ -645,9 +645,13 @@ const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
       }
     }
 
-    const handleReflectionStart = (data) => {
+    const handleReflectionInfo = (data) => {
       if (data.session_id === SESSION_ID) {
-        setMessages((prev) => [...prev, { role: "info", content: "Reflecting on the changes..." }])
+        console.log('AI Reflection info:', data.message)
+        setMessages((prev) => [...prev, { 
+          role: "info", 
+          content: `🤔 AI Reflection ${data.reflection_num}/3: ${data.message}` 
+        }])
       }
     }
 
@@ -704,7 +708,7 @@ const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
     addEventListener("message_complete", handleMessageComplete)
     addEventListener("editor_chunk", handleEditorChunk)
     addEventListener("editor_complete", handleEditorComplete)
-    addEventListener("reflection_start", handleReflectionStart)
+    addEventListener("reflection_info", handleReflectionInfo)
     addEventListener("reflection_chunk", handleReflectionChunk)
     addEventListener("reflection_complete", handleReflectionComplete)
     addEventListener("files_edited", handleFilesEdited)
@@ -716,7 +720,7 @@ const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
       removeEventListener("message_complete", handleMessageComplete)
       removeEventListener("editor_chunk", handleEditorChunk)
       removeEventListener("editor_complete", handleEditorComplete)
-      removeEventListener("reflection_start", handleReflectionStart)
+      removeEventListener("reflection_info", handleReflectionInfo)
       removeEventListener("reflection_chunk", handleReflectionChunk)
       removeEventListener("reflection_complete", handleReflectionComplete)
       removeEventListener("files_edited", handleFilesEdited)

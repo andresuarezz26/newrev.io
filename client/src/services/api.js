@@ -39,7 +39,8 @@ const eventListeners = {
   message_complete: [],
   files_edited: [],
   commit: [],
-  error: []
+  error: [],
+  reflection_info: []
 };
 
 // Create EventSource for SSE
@@ -96,6 +97,14 @@ const connectToEventStream = async () => {
     
     // Notify listeners
     eventListeners.commit.forEach(listener => listener(data));
+  });
+  
+  eventSource.addEventListener('reflection_info', (event) => {
+    const data = JSON.parse(event.data);
+    console.log('Reflection info:', data);
+    
+    // Notify listeners
+    eventListeners.reflection_info.forEach(listener => listener(data));
   });
   
   eventSource.addEventListener('error', (event) => {

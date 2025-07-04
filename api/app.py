@@ -166,15 +166,12 @@ class AiderAPI:
     
     @staticmethod
     def process_chat(coder, prompt, session_id):
-        """Process a chat message and queue response for streaming"""
+        """Process a chat message and queue response for streaming - matches gui.py logic exactly"""
         def run_stream():
             logger = logging.getLogger(__name__)
             logger.error("🔄 " + "="*50)
-            logger.error("🔄 PROCESS_CHAT THREAD STARTED")
+            logger.error("🔄 PROCESS_CHAT THREAD STARTED - GUI.PY STYLE")
             logger.error("🔄 " + "="*50)
-            
-            # Log coder properties before processing
-            log_coder_properties(coder, "PROCESS_CHAT START")
             
             try:
                 # Ensure the session has a message queue
@@ -186,62 +183,171 @@ class AiderAPI:
                 message_queue = message_queues[session_id]
                 logger.error(f"📋 Got message queue for session: {session_id}")
                 
-                # Log coder properties before streaming
-                log_coder_properties_simple(coder, "PRE-STREAM")
+                # This duplicates logic from within Coder (matches gui.py exactly)
+                num_reflections = 0
+                max_reflections = 3
+                current_prompt = prompt
                 
-                # Process the prompt and stream response
-                for chunk in coder.run_stream(prompt):
-                    # Add chunk to the queue
+                logger.error(f"🧠 Reflection Setup (gui.py style):")
+                logger.error(f"   Max reflections: {max_reflections}")
+                logger.error(f"   Initial prompt: {current_prompt[:100]}{'...' if len(current_prompt) > 100 else ''}")
+                
+                # Main reflection loop - EXACTLY like gui.py: while prompt:
+                while current_prompt:
+                    logger.error(f"🔁 WHILE LOOP ITERATION - prompt exists")
+                    logger.error(f"   Current prompt: {current_prompt[:100]}{'...' if len(current_prompt) > 100 else ''}")
+                    logger.error(f"   Reflections so far: {num_reflections}/{max_reflections}")
+                    
+                    # Stream the assistant response (like gui.py: st.write_stream(self.coder.run_stream(prompt)))
+                    full_response = ""
+                    chunk_count = 0
+                    logger.error(f"🌊 Starting stream for current prompt...")
+                    
+                    for chunk in coder.run_stream(current_prompt):
+                        chunk_count += 1
+                        full_response += chunk
+                        
+                        # Log first few chunks for debugging
+                        if chunk_count <= 3:
+                            logger.error(f"   Chunk {chunk_count}: {chunk[:50]}{'...' if len(chunk) > 50 else ''}")
+                        
+                        # Add chunk to the queue
+                        message_queue.put({
+                            'type': 'message_chunk',
+                            'data': {'chunk': chunk, 'session_id': session_id}
+                        })
+                    
+                    logger.error(f"🌊 Stream completed:")
+                    logger.error(f"   Total chunks: {chunk_count}")
+                    logger.error(f"   Response length: {len(full_response)}")
+                    
+                    # Add the complete assistant message to session (like gui.py)
+                    if session_id in sessions:
+                        sessions[session_id]['messages'].append({
+                            'role': 'assistant', 
+                            'content': full_response
+                        })
+                        logger.error(f"💾 Added assistant response to session messages")
+                    
+                    # Mark this response as complete
                     message_queue.put({
-                        'type': 'message_chunk',
-                        'data': {'chunk': chunk, 'session_id': session_id}
+                        'type': 'message_complete',
+                        'data': {'session_id': session_id, 'content': full_response}
                     })
+                    logger.error(f"✅ Sent message_complete event")
+                    
+                    # Reset prompt (like gui.py: prompt = None)
+                    current_prompt = None
+                    
+                    # Check for reflection (like gui.py: if self.coder.reflected_message:)
+                    if coder.reflected_message:
+                        logger.error(f"🤔 REFLECTION DETECTED!")
+                        logger.error(f"   Reflection message: {coder.reflected_message}")
+                        logger.error(f"   Current reflection count: {num_reflections}/{max_reflections}")
+                        
+                        if num_reflections < max_reflections:
+                            num_reflections += 1
+                            logger.error(f"✅ Proceeding with reflection {num_reflections} (gui.py style)")
+                            
+                            # Show reflection as info (like gui.py: self.info(self.coder.reflected_message))
+                            message_queue.put({
+                                'type': 'reflection_info',
+                                'data': {
+                                    'message': coder.reflected_message,
+                                    'reflection_num': num_reflections,
+                                    'session_id': session_id
+                                }
+                            })
+                            logger.error(f"📤 Sent reflection_info event")
+                            
+                            # Add reflection to session messages as info
+                            if session_id in sessions:
+                                sessions[session_id]['messages'].append({
+                                    'role': 'info', 
+                                    'content': f"🤔 AI Reflection {num_reflections}/3: {coder.reflected_message}"
+                                })
+                                logger.error(f"💾 Added reflection to session messages")
+                            
+                            # Continue the loop with reflected message (like gui.py: prompt = self.coder.reflected_message)
+                            current_prompt = coder.reflected_message
+                            logger.error(f"🔄 Continuing loop with reflected message")
+                        else:
+                            # Hit reflection limit
+                            logger.warning(f"⚠️ REFLECTION LIMIT REACHED ({max_reflections})")
+                            message_queue.put({
+                                'type': 'reflection_limit',
+                                'data': {
+                                    'message': f"Reached maximum reflections ({max_reflections})",
+                                    'session_id': session_id
+                                }
+                            })
+                            logger.error(f"📤 Sent reflection_limit event")
+                    else:
+                        logger.error(f"✅ No reflection - conversation complete")
                 
-                # Log coder properties after streaming
-                log_coder_properties_simple(coder, "POST-STREAM")
+                logger.error(f"🏁 WHILE LOOP COMPLETED - no more prompts")
                 
-                # Mark message as complete
-                message_queue.put({
-                    'type': 'message_complete',
-                    'data': {'session_id': session_id}
-                })
+                # After the conversation loop, check for edits and commits (like gui.py)
+                logger.error(f"🔍 Checking for file edits and commits...")
                 
                 # Check for edits
-                if coder.aider_edited_files:
-                    logger.error(f"📝 Files edited: {list(coder.aider_edited_files)}")
+                edited_files = getattr(coder, 'aider_edited_files', [])
+                if edited_files:
+                    logger.error(f"📝 Files edited: {list(edited_files)}")
                     message_queue.put({
                         'type': 'files_edited',
-                        'data': {'files': list(coder.aider_edited_files), 'session_id': session_id}
+                        'data': {'files': list(edited_files), 'session_id': session_id}
                     })
+                    logger.error(f"📤 Sent files_edited event")
+                else:
+                    logger.error(f"📝 No files were edited")
                 
-                # Check for commits
-                if sessions[session_id].get('last_aider_commit_hash') != coder.last_aider_commit_hash:
-                    if coder.last_aider_commit_hash:
-                        logger.error(f"📝 NEW COMMIT DETECTED: {coder.last_aider_commit_hash}")
-                        commits = f"{coder.last_aider_commit_hash}~1"
+                # Check for commits (like gui.py edit logic)
+                current_commit = getattr(coder, 'last_aider_commit_hash', None)
+                session_commit = sessions[session_id].get('last_aider_commit_hash')
+                
+                logger.error(f"🔍 Commit check:")
+                logger.error(f"   Session commit: {session_commit}")
+                logger.error(f"   Current commit: {current_commit}")
+                
+                if session_commit != current_commit and current_commit:
+                    logger.error(f"📝 NEW COMMIT DETECTED: {current_commit}")
+                    try:
+                        commits = f"{current_commit}~1"
                         diff = coder.repo.diff_commits(
                             coder.pretty,
                             commits,
-                            coder.last_aider_commit_hash,
+                            current_commit,
                         )
+                        
+                        commit_msg = getattr(coder, 'last_aider_commit_message', '')
+                        logger.error(f"   Commit message: {commit_msg}")
+                        logger.error(f"   Diff length: {len(diff) if diff else 0}")
                         
                         message_queue.put({
                             'type': 'commit',
                             'data': {
-                                'hash': coder.last_aider_commit_hash,
-                                'message': coder.last_aider_commit_message,
+                                'hash': current_commit,
+                                'message': commit_msg,
                                 'diff': diff,
                                 'session_id': session_id
                             }
                         })
                         
-                        sessions[session_id]['last_aider_commit_hash'] = coder.last_aider_commit_hash
+                        sessions[session_id]['last_aider_commit_hash'] = current_commit
+                        logger.error(f"📤 Sent commit event and updated session")
+                    except Exception as commit_error:
+                        logger.error(f"❌ Error processing commit: {commit_error}")
+                else:
+                    logger.error(f"📝 No new commits")
                 
-                # Log final coder properties
-                log_coder_properties_simple(coder, "PROCESS_CHAT COMPLETE")
+                # Save session after processing
+                if session_id in sessions:
+                    save_session(session_id, sessions[session_id])
+                    logger.error(f"💾 Final session save completed")
                 
                 logger.error("🔄 " + "="*50)
-                logger.error("🔄 PROCESS_CHAT THREAD COMPLETED SUCCESSFULLY")
+                logger.error("🔄 PROCESS_CHAT THREAD COMPLETED SUCCESSFULLY (GUI.PY STYLE)")
                 logger.error("🔄 " + "="*50)
                 
             except Exception as e:
@@ -257,10 +363,11 @@ class AiderAPI:
                         'type': 'error',
                         'data': {'message': str(e), 'session_id': session_id}
                     })
+                    logger.error(f"📤 Sent error event to client")
         
         # Create and start thread
         logger = logging.getLogger(__name__)
-        logger.error(f"🧵 Creating background thread for process_chat")
+        logger.error(f"🧵 Creating background thread for process_chat (gui.py style)")
         thread = threading.Thread(target=run_stream)
         thread.daemon = True
         thread.start()
