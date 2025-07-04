@@ -44,6 +44,9 @@ sessions = {}
 # Message queues for session streaming
 message_queues = {}
 
+# Track cancellation requests per session
+cancellation_requests = {}
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -216,6 +219,17 @@ class AiderAPI:
                         logger.error(f"🌊 Starting stream for current prompt...")
                         
                         for chunk in coder.run_stream(current_prompt):
+                            # Check for cancellation before processing each chunk
+                            if cancellation_requests.get(session_id, False):
+                                logger.error(f"🚫 CANCELLATION DETECTED - stopping stream (CODE MODE)")
+                                message_queue.put({
+                                    'type': 'message_cancelled',
+                                    'data': {'session_id': session_id, 'message': 'Request cancelled by user'}
+                                })
+                                # Clear the cancellation flag
+                                cancellation_requests[session_id] = False
+                                return
+                            
                             chunk_count += 1
                             full_response += chunk
                             
@@ -310,6 +324,17 @@ class AiderAPI:
                     logger.error(f"🌊 Starting single stream for {current_mode.upper()} mode...")
                     
                     for chunk in coder.run_stream(prompt):
+                        # Check for cancellation before processing each chunk
+                        if cancellation_requests.get(session_id, False):
+                            logger.error(f"🚫 CANCELLATION DETECTED - stopping stream ({current_mode.upper()} MODE)")
+                            message_queue.put({
+                                'type': 'message_cancelled',
+                                'data': {'session_id': session_id, 'message': 'Request cancelled by user'}
+                            })
+                            # Clear the cancellation flag
+                            cancellation_requests[session_id] = False
+                            return
+                        
                         chunk_count += 1
                         full_response += chunk
                         
@@ -604,6 +629,28 @@ def send_message():
     AiderAPI.process_chat(coder, message, session_id)
     
     return jsonify({'status': 'success'})
+
+@app.route('/api/cancel_message', methods=['POST'])
+def cancel_message():
+    """Cancel an ongoing message processing for a session"""
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        
+        if not session_id:
+            return jsonify({'status': 'error', 'message': 'session_id is required'}), 400
+        
+        # Set cancellation flag for the session
+        cancellation_requests[session_id] = True
+        logger = logging.getLogger(__name__)
+        logger.error(f"🚫 CANCELLATION REQUESTED for session: {session_id}")
+        
+        return jsonify({'status': 'success', 'message': 'Cancellation request sent'})
+        
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error cancelling message: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # Server-Sent Events (SSE) endpoint for streaming responses
 @app.route('/api/stream', methods=['GET'])

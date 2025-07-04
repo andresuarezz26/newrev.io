@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, memo, useMemo } from "react"
-import { 
-  Button, 
-  TextField, 
-  Paper, 
-  Typography, 
-  Box, 
-  CircularProgress, 
+import {
+  Button,
+  TextField,
+  Paper,
+  Typography,
+  Box,
+  CircularProgress,
   IconButton,
   MenuList,
   MenuItem,
@@ -16,6 +16,7 @@ import {
   ListItemText,
 } from "@mui/material"
 import SendIcon from "@mui/icons-material/Send"
+import StopIcon from "@mui/icons-material/Stop"
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { ExpandMore, AllInclusive, ChatBubbleOutline, Code, Check, Edit, Search } from "@mui/icons-material"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -374,11 +375,11 @@ const ChatMessage = memo(({ message, onCopy }) => {
               <span key={idx}>{part.content}</span>
             ) : (
               <Box key={idx} sx={{ my: 2, borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
-                <Box 
-                  sx={{ 
-                    position: 'absolute', 
-                    top: 5, 
-                    right: 5, 
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: 5,
+                    right: 5,
                     zIndex: 1,
                     display: 'flex',
                     alignItems: 'center',
@@ -390,13 +391,13 @@ const ChatMessage = memo(({ message, onCopy }) => {
                       {part.language}
                     </Typography>
                   )}
-                  <IconButton 
-                    size="small" 
+                  <IconButton
+                    size="small"
                     onClick={() => onCopy(part.content)}
-                    sx={{ 
-                      color: '#aaa', 
+                    sx={{
+                      color: '#aaa',
                       backgroundColor: 'rgba(0,0,0,0.3)',
-                      '&:hover': { 
+                      '&:hover': {
                         backgroundColor: 'rgba(0,0,0,0.5)',
                         color: '#fff'
                       }
@@ -493,11 +494,11 @@ const StreamingContent = memo(({ content, onCopy }) => {
               <span key={index}>{part.content}</span>
             ) : (
               <Box key={index} sx={{ my: 2, borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
-                <Box 
-                  sx={{ 
-                    position: 'absolute', 
-                    top: 5, 
-                    right: 5, 
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: 5,
+                    right: 5,
                     zIndex: 1,
                     display: 'flex',
                     alignItems: 'center',
@@ -509,13 +510,13 @@ const StreamingContent = memo(({ content, onCopy }) => {
                       {part.language}
                     </Typography>
                   )}
-                  <IconButton 
-                    size="small" 
+                  <IconButton
+                    size="small"
                     onClick={() => onCopy(part.content)}
-                    sx={{ 
-                      color: '#aaa', 
+                    sx={{
+                      color: '#aaa',
                       backgroundColor: 'rgba(0,0,0,0.3)',
-                      '&:hover': { 
+                      '&:hover': {
                         backgroundColor: 'rgba(0,0,0,0.5)',
                         color: '#fff'
                       }
@@ -595,7 +596,7 @@ const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
       const scrollTop = container.scrollTop
       const clientHeight = container.clientHeight
       const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 50
-  
+
     }
 
     container.addEventListener("scroll", handleScroll)
@@ -607,7 +608,7 @@ const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
 
     if (!isUserScrollingRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-    } 
+    }
   }, [messages, streamingContent])
 
   // Effect to set up event listeners
@@ -648,9 +649,9 @@ const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
     const handleReflectionInfo = (data) => {
       if (data.session_id === SESSION_ID) {
         console.log('AI Reflection info:', data.message)
-        setMessages((prev) => [...prev, { 
-          role: "info", 
-          content: `${data.message}` 
+        setMessages((prev) => [...prev, {
+          role: "info",
+          content: `${data.message}`
         }])
       }
     }
@@ -707,10 +708,20 @@ const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
     const handleRefreshFiles = (data) => {
       if (data.session_id === SESSION_ID) {
         console.log('Refresh files triggered:', data.message)
-        
+
         // Trigger a refresh of files in the file manager
         // This will be handled by the FileManager component via a custom event
         window.dispatchEvent(new CustomEvent('refreshFiles', { detail: data }))
+      }
+    }
+
+    const handleMessageCancelled = (data) => {
+      if (data.session_id === SESSION_ID) {
+        console.log('Message cancelled:', data.message)
+        setIsLoading(false)
+        setStreamingContent("")
+        setEditorContent("")
+        setReflectionContent("")
       }
     }
 
@@ -725,6 +736,7 @@ const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
     addEventListener("commit", handleCommit)
     addEventListener("error", handleError)
     addEventListener("refresh_files", handleRefreshFiles)
+    addEventListener("message_cancelled", handleMessageCancelled)
 
     return () => {
       removeEventListener("message_chunk", handleMessageChunk)
@@ -738,6 +750,7 @@ const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
       removeEventListener("commit", handleCommit)
       removeEventListener("error", handleError)
       removeEventListener("refresh_files", handleRefreshFiles)
+      removeEventListener("message_cancelled", handleMessageCancelled)
     }
   }, [streamingContent, editorContent, reflectionContent])
 
@@ -754,7 +767,7 @@ const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
     setInput("")
     setIsLoading(true)
     setMessages((prev) => [...prev, { role: "user", content: userMessage }])
-    
+
     isUserScrollingRef.current = false
 
     try {
@@ -774,9 +787,22 @@ const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
       }
     } catch (error) {
       console.error("Error changing mode:", error);
-      setMessages((prev) => [...prev, { 
-        role: "error", 
-        content: "Failed to change mode. Please try again." 
+      setMessages((prev) => [...prev, {
+        role: "error",
+        content: "Failed to change mode. Please try again."
+      }]);
+    }
+  }, []);
+
+  const handleCancelMessage = useCallback(async () => {
+    try {
+      await api.cancelMessage();
+      console.log("Cancel request sent");
+    } catch (error) {
+      console.error("Error cancelling message:", error);
+      setMessages((prev) => [...prev, {
+        role: "error",
+        content: "Failed to cancel message. Please try again."
       }]);
     }
   }, []);
@@ -829,30 +855,30 @@ const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
             }}
           >
             {messages.map((message, index) => (
-              <ChatMessage 
-                key={index} 
-                message={message} 
+              <ChatMessage
+                key={index}
+                message={message}
                 onCopy={copyToClipboard}
               />
             ))}
 
             {streamingContent && (
-              <StreamingContent 
-                content={streamingContent} 
+              <StreamingContent
+                content={streamingContent}
                 onCopy={copyToClipboard}
               />
             )}
 
             {editorContent && (
-              <StreamingContent 
-                content={editorContent} 
+              <StreamingContent
+                content={editorContent}
                 onCopy={copyToClipboard}
               />
             )}
 
             {reflectionContent && (
-              <StreamingContent 
-                content={reflectionContent} 
+              <StreamingContent
+                content={reflectionContent}
                 onCopy={copyToClipboard}
               />
             )}
@@ -916,31 +942,60 @@ const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
                   },
                 }}
               />
-              <IconButton
-                type="submit"
-                disabled={isLoading || !input.trim()}
-                sx={{
-                  backgroundColor: "#007acc",
-                  color: "#fff",
-                  width: 40,
-                  height: 40,
-                  borderRadius: "6px",
-                  "&:hover": {
-                    backgroundColor: "#0066aa",
-                  },
-                  "&.Mui-disabled": {
-                    backgroundColor: "#404040",
-                    color: "#666666",
-                  },
-                }}
-              >
-                {isLoading ? <CircularProgress size={20} sx={{ color: "#fff" }} /> : <SendIcon fontSize="small" />}
-              </IconButton>
+              {isLoading ? (
+                <IconButton
+                  onClick={handleCancelMessage}
+                  sx={{
+                    backgroundColor: "#dc3545",
+                    color: "#fff",
+                    width: 40,
+                    height: 40,
+                    borderRadius: "6px",
+                    "&:hover": {
+                      backgroundColor: "#c82333",
+                    },
+                  }}
+                >
+                  <Box
+                    component="svg"
+                    viewBox="0 0 24 24"
+                    fontSize="small"
+                    sx={{
+                      width: "1em",
+                      height: "1em",
+                      fill: "currentColor"
+                    }}
+                  >
+                    <path d="M6 6h12v12H6z" />
+                  </Box>
+                </IconButton>
+              ) : (
+                <IconButton
+                  type="submit"
+                  disabled={!input.trim()}
+                  sx={{
+                    backgroundColor: "#007acc",
+                    color: "#fff",
+                    width: 40,
+                    height: 40,
+                    borderRadius: "6px",
+                    "&:hover": {
+                      backgroundColor: "#0066aa",
+                    },
+                    "&.Mui-disabled": {
+                      backgroundColor: "#404040",
+                      color: "#666666",
+                    },
+                  }}
+                >
+                  <SendIcon fontSize="small" />
+                </IconButton>
+              )}
             </Box>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mt: 1, gap: 2 }}>
               <CursorModeSelector value={mode} onChange={handleModeChange} />
               <Box sx={{ minWidth: 180 }}>
-                <ModelSelector 
+                <ModelSelector
                   selectedModel={selectedModel}
                   onModelChange={onModelChange}
                   apiKeys={apiKeys || {}}

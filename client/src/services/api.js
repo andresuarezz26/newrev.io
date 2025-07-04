@@ -37,6 +37,7 @@ const eventListeners = {
   connected: [],
   message_chunk: [],
   message_complete: [],
+  message_cancelled: [],
   files_edited: [],
   commit: [],
   error: [],
@@ -82,6 +83,14 @@ const connectToEventStream = async () => {
     
     // Notify listeners
     eventListeners.message_complete.forEach(listener => listener(data));
+  });
+  
+  eventSource.addEventListener('message_cancelled', (event) => {
+    const data = JSON.parse(event.data);
+    console.log('Message cancelled:', data);
+    
+    // Notify listeners
+    eventListeners.message_cancelled.forEach(listener => listener(data));
   });
   
   eventSource.addEventListener('files_edited', (event) => {
@@ -190,6 +199,21 @@ const api = {
       return response.data;
     } catch (error) {
       console.error('Error sending message:', error);
+      throw error;
+    }
+  },
+
+  // Cancel an ongoing message
+  cancelMessage: async () => {
+    try {
+      const apiUrl = await getApiUrl();
+      const response = await axios.post(`${apiUrl}/cancel_message`, {
+        session_id: SESSION_ID
+      });
+      console.log('Message cancelled:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error cancelling message:', error);
       throw error;
     }
   },
