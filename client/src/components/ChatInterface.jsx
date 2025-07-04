@@ -704,6 +704,16 @@ const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
       }
     }
 
+    const handleRefreshFiles = (data) => {
+      if (data.session_id === SESSION_ID) {
+        console.log('Refresh files triggered:', data.message)
+        
+        // Trigger a refresh of files in the file manager
+        // This will be handled by the FileManager component via a custom event
+        window.dispatchEvent(new CustomEvent('refreshFiles', { detail: data }))
+      }
+    }
+
     addEventListener("message_chunk", handleMessageChunk)
     addEventListener("message_complete", handleMessageComplete)
     addEventListener("editor_chunk", handleEditorChunk)
@@ -714,6 +724,7 @@ const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
     addEventListener("files_edited", handleFilesEdited)
     addEventListener("commit", handleCommit)
     addEventListener("error", handleError)
+    addEventListener("refresh_files", handleRefreshFiles)
 
     return () => {
       removeEventListener("message_chunk", handleMessageChunk)
@@ -726,6 +737,7 @@ const ChatInterface = ({ selectedModel, onModelChange, apiKeys }) => {
       removeEventListener("files_edited", handleFilesEdited)
       removeEventListener("commit", handleCommit)
       removeEventListener("error", handleError)
+      removeEventListener("refresh_files", handleRefreshFiles)
     }
   }, [streamingContent, editorContent, reflectionContent])
 

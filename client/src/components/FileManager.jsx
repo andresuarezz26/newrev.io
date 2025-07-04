@@ -231,6 +231,23 @@ const FileManager = ({ onFileSelect, selectedProject, isInitialized, onOpenProje
     fetchFiles()
   }, [])
 
+  // Listen for refresh files events from reflections
+  useEffect(() => {
+    const handleRefreshFilesEvent = (event) => {
+      console.log('Received refresh files event:', event.detail)
+      // Use the existing handleRefresh function
+      handleRefresh()
+    }
+
+    // Add event listener for custom refresh files event
+    window.addEventListener('refreshFiles', handleRefreshFilesEvent)
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('refreshFiles', handleRefreshFilesEvent)
+    }
+  }, []) // Empty dependency array since handleRefresh is stable
+
   // Refresh files when project changes
   useEffect(() => {
     if (isInitialized && selectedProject) {

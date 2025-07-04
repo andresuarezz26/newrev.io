@@ -40,7 +40,8 @@ const eventListeners = {
   files_edited: [],
   commit: [],
   error: [],
-  reflection_info: []
+  reflection_info: [],
+  refresh_files: []
 };
 
 // Create EventSource for SSE
@@ -105,6 +106,14 @@ const connectToEventStream = async () => {
     
     // Notify listeners
     eventListeners.reflection_info.forEach(listener => listener(data));
+  });
+  
+  eventSource.addEventListener('refresh_files', (event) => {
+    const data = JSON.parse(event.data);
+    console.log('Refresh files:', data);
+    
+    // Notify listeners
+    eventListeners.refresh_files.forEach(listener => listener(data));
   });
   
   eventSource.addEventListener('error', (event) => {

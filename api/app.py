@@ -183,27 +183,130 @@ class AiderAPI:
                 message_queue = message_queues[session_id]
                 logger.error(f"📋 Got message queue for session: {session_id}")
                 
-                # This duplicates logic from within Coder (matches gui.py exactly)
-                num_reflections = 0
-                max_reflections = 3
-                current_prompt = prompt
+                # Check the current mode to determine if we should use reflections
+                current_mode = getattr(coder, 'edit_format', 'code')
+                use_reflections = (current_mode == 'code')
                 
-                logger.error(f"🧠 Reflection Setup (gui.py style):")
-                logger.error(f"   Max reflections: {max_reflections}")
-                logger.error(f"   Initial prompt: {current_prompt[:100]}{'...' if len(current_prompt) > 100 else ''}")
+                logger.error(f"🎯 Mode-based Processing:")
+                logger.error(f"   Current mode: {current_mode}")
+                logger.error(f"   Use reflections: {use_reflections}")
                 
-                # Main reflection loop - EXACTLY like gui.py: while prompt:
-                while current_prompt:
-                    logger.error(f"🔁 WHILE LOOP ITERATION - prompt exists")
-                    logger.error(f"   Current prompt: {current_prompt[:100]}{'...' if len(current_prompt) > 100 else ''}")
-                    logger.error(f"   Reflections so far: {num_reflections}/{max_reflections}")
+                if use_reflections:
+                    # This duplicates logic from within Coder (matches gui.py exactly) - CODE MODE ONLY
+                    num_reflections = 0
+                    max_reflections = 3
+                    current_prompt = prompt
                     
-                    # Stream the assistant response (like gui.py: st.write_stream(self.coder.run_stream(prompt)))
+                    logger.error(f"🧠 Reflection Setup (gui.py style - CODE MODE):")
+                    logger.error(f"   Max reflections: {max_reflections}")
+                    logger.error(f"   Initial prompt: {current_prompt[:100]}{'...' if len(current_prompt) > 100 else ''}")
+                    
+                    # Main reflection loop - EXACTLY like gui.py: while prompt: (CODE MODE ONLY)
+                    while current_prompt:
+                        logger.error(f"🔁 WHILE LOOP ITERATION - prompt exists (CODE MODE)")
+                        logger.error(f"   Current prompt: {current_prompt[:100]}{'...' if len(current_prompt) > 100 else ''}")
+                        logger.error(f"   Reflections so far: {num_reflections}/{max_reflections}")
+                        
+                        # Stream the assistant response (like gui.py: st.write_stream(self.coder.run_stream(prompt)))
+                        full_response = ""
+                        chunk_count = 0
+                        logger.error(f"🌊 Starting stream for current prompt...")
+                        
+                        for chunk in coder.run_stream(current_prompt):
+                            chunk_count += 1
+                            full_response += chunk
+                            
+                            # Log first few chunks for debugging
+                            if chunk_count <= 3:
+                                logger.error(f"   Chunk {chunk_count}: {chunk[:50]}{'...' if len(chunk) > 50 else ''}")
+                            
+                            # Add chunk to the queue
+                            message_queue.put({
+                                'type': 'message_chunk',
+                                'data': {'chunk': chunk, 'session_id': session_id}
+                            })
+                        
+                        logger.error(f"🌊 Stream completed:")
+                        logger.error(f"   Total chunks: {chunk_count}")
+                        logger.error(f"   Response length: {len(full_response)}")
+                        
+                        # Add the complete assistant message to session (like gui.py)
+                        if session_id in sessions:
+                            sessions[session_id]['messages'].append({
+                                'role': 'assistant', 
+                                'content': full_response
+                            })
+                            logger.error(f"💾 Added assistant response to session messages")
+                        
+                        # Mark this response as complete
+                        message_queue.put({
+                            'type': 'message_complete',
+                            'data': {'session_id': session_id, 'content': full_response}
+                        })
+                        logger.error(f"✅ Sent message_complete event")
+                        
+                        # Reset prompt (like gui.py: prompt = None)
+                        current_prompt = None
+                        
+                        # Check for reflection (like gui.py: if self.coder.reflected_message:) - CODE MODE ONLY
+                        if coder.reflected_message:
+                            logger.error(f"🤔 REFLECTION DETECTED!")
+                            logger.error(f"   Reflection message: {coder.reflected_message}")
+                            logger.error(f"   Current reflection count: {num_reflections}/{max_reflections}")
+                            
+                            if num_reflections < max_reflections:
+                                num_reflections += 1
+                                logger.error(f"✅ Proceeding with reflection {num_reflections} (gui.py style)")
+                                
+                                # Show reflection as info (like gui.py: self.info(self.coder.reflected_message))
+                                message_queue.put({
+                                    'type': 'reflection_info',
+                                    'data': {
+                                        'message': coder.reflected_message,
+                                        'reflection_num': num_reflections,
+                                        'session_id': session_id
+                                    }
+                                })
+                                logger.error(f"📤 Sent reflection_info event")
+                                
+                                # Add reflection to session messages as info
+                                if session_id in sessions:
+                                    sessions[session_id]['messages'].append({
+                                        'role': 'info', 
+                                        'content': f"🤔 AI Reflection {num_reflections}/3: {coder.reflected_message}"
+                                    })
+                                    logger.error(f"💾 Added reflection to session messages")
+                                
+                                # Continue the loop with reflected message (like gui.py: prompt = self.coder.reflected_message)
+                                current_prompt = coder.reflected_message
+                                logger.error(f"🔄 Continuing loop with reflected message")
+                            else:
+                                # Hit reflection limit
+                                logger.warning(f"⚠️ REFLECTION LIMIT REACHED ({max_reflections})")
+                                message_queue.put({
+                                    'type': 'reflection_limit',
+                                    'data': {
+                                        'message': f"Reached maximum reflections ({max_reflections})",
+                                        'session_id': session_id
+                                    }
+                                })
+                                logger.error(f"📤 Sent reflection_limit event")
+                        else:
+                            logger.error(f"✅ No reflection - conversation complete")
+                    
+                    logger.error(f"🏁 WHILE LOOP COMPLETED - no more prompts (CODE MODE)")
+                    
+                else:
+                    # Simple single response for ASK/CONTEXT modes - no reflections
+                    logger.error(f"📝 SIMPLE MODE ({current_mode.upper()}) - Single response only")
+                    logger.error(f"   Initial prompt: {prompt[:100]}{'...' if len(prompt) > 100 else ''}")
+                    
+                    # Stream the response once (no reflection loop)
                     full_response = ""
                     chunk_count = 0
-                    logger.error(f"🌊 Starting stream for current prompt...")
+                    logger.error(f"🌊 Starting single stream for {current_mode.upper()} mode...")
                     
-                    for chunk in coder.run_stream(current_prompt):
+                    for chunk in coder.run_stream(prompt):
                         chunk_count += 1
                         full_response += chunk
                         
@@ -217,11 +320,11 @@ class AiderAPI:
                             'data': {'chunk': chunk, 'session_id': session_id}
                         })
                     
-                    logger.error(f"🌊 Stream completed:")
+                    logger.error(f"🌊 Stream completed ({current_mode.upper()} mode):")
                     logger.error(f"   Total chunks: {chunk_count}")
                     logger.error(f"   Response length: {len(full_response)}")
                     
-                    # Add the complete assistant message to session (like gui.py)
+                    # Add the complete assistant message to session
                     if session_id in sessions:
                         sessions[session_id]['messages'].append({
                             'role': 'assistant', 
@@ -236,56 +339,44 @@ class AiderAPI:
                     })
                     logger.error(f"✅ Sent message_complete event")
                     
-                    # Reset prompt (like gui.py: prompt = None)
-                    current_prompt = None
-                    
-                    # Check for reflection (like gui.py: if self.coder.reflected_message:)
+                    # Check for any reflections but ignore them for loop logic in ASK/CONTEXT modes
                     if coder.reflected_message:
-                        logger.error(f"🤔 REFLECTION DETECTED!")
+                        logger.error(f"🚫 Reflection detected but IGNORED for loop in {current_mode.upper()} mode:")
                         logger.error(f"   Reflection message: {coder.reflected_message}")
-                        logger.error(f"   Current reflection count: {num_reflections}/{max_reflections}")
                         
-                        if num_reflections < max_reflections:
-                            num_reflections += 1
-                            logger.error(f"✅ Proceeding with reflection {num_reflections} (gui.py style)")
-                            
-                            # Show reflection as info (like gui.py: self.info(self.coder.reflected_message))
-                            message_queue.put({
-                                'type': 'reflection_info',
-                                'data': {
-                                    'message': coder.reflected_message,
-                                    'reflection_num': num_reflections,
-                                    'session_id': session_id
-                                }
+                        # Still show the reflection to the user as info
+                        message_queue.put({
+                            'type': 'reflection_info',
+                            'data': {
+                                'message': f"[{current_mode.upper()} Mode] {coder.reflected_message}",
+                                'reflection_num': 1,
+                                'session_id': session_id
+                            }
+                        })
+                        logger.error(f"📤 Sent reflection_info event for {current_mode.upper()} mode")
+                        
+                        # Add reflection to session messages as info
+                        if session_id in sessions:
+                            sessions[session_id]['messages'].append({
+                                'role': 'info', 
+                                'content': f"🤔 AI Note ({current_mode.upper()} Mode): {coder.reflected_message}"
                             })
-                            logger.error(f"📤 Sent reflection_info event")
-                            
-                            # Add reflection to session messages as info
-                            if session_id in sessions:
-                                sessions[session_id]['messages'].append({
-                                    'role': 'info', 
-                                    'content': f"🤔 AI Reflection {num_reflections}/3: {coder.reflected_message}"
-                                })
-                                logger.error(f"💾 Added reflection to session messages")
-                            
-                            # Continue the loop with reflected message (like gui.py: prompt = self.coder.reflected_message)
-                            current_prompt = coder.reflected_message
-                            logger.error(f"🔄 Continuing loop with reflected message")
-                        else:
-                            # Hit reflection limit
-                            logger.warning(f"⚠️ REFLECTION LIMIT REACHED ({max_reflections})")
-                            message_queue.put({
-                                'type': 'reflection_limit',
-                                'data': {
-                                    'message': f"Reached maximum reflections ({max_reflections})",
-                                    'session_id': session_id
-                                }
-                            })
-                            logger.error(f"📤 Sent reflection_limit event")
+                            logger.error(f"💾 Added reflection to session messages")
+                        
+                        # Trigger a file refresh to get most updated information
+                        logger.error(f"🔄 Triggering file refresh after reflection in {current_mode.upper()} mode")
+                        message_queue.put({
+                            'type': 'refresh_files',
+                            'data': {
+                                'mode': current_mode.upper(),
+                                'session_id': session_id
+                            }
+                        })
+                        logger.error(f"📤 Sent refresh_files event")
                     else:
-                        logger.error(f"✅ No reflection - conversation complete")
-                
-                logger.error(f"🏁 WHILE LOOP COMPLETED - no more prompts")
+                        logger.error(f"✅ No reflection - simple response complete")
+                    
+                    logger.error(f"🏁 SIMPLE MODE COMPLETED ({current_mode.upper()})")
                 
                 # After the conversation loop, check for edits and commits (like gui.py)
                 logger.error(f"🔍 Checking for file edits and commits...")
