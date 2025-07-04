@@ -168,13 +168,26 @@ class AiderAPI:
     def process_chat(coder, prompt, session_id):
         """Process a chat message and queue response for streaming"""
         def run_stream():
+            logger = logging.getLogger(__name__)
+            logger.error("🔄 " + "="*50)
+            logger.error("🔄 PROCESS_CHAT THREAD STARTED")
+            logger.error("🔄 " + "="*50)
+            
+            # Log coder properties before processing
+            log_coder_properties(coder, "PROCESS_CHAT START")
+            
             try:
                 # Ensure the session has a message queue
                 if session_id not in message_queues:
                     message_queues[session_id] = queue.Queue()
+                    logger.error(f"📋 Created new message queue for session: {session_id}")
                 
                 # Get the queue for this session
                 message_queue = message_queues[session_id]
+                logger.error(f"📋 Got message queue for session: {session_id}")
+                
+                # Log coder properties before streaming
+                log_coder_properties_simple(coder, "PRE-STREAM")
                 
                 # Process the prompt and stream response
                 for chunk in coder.run_stream(prompt):
@@ -184,6 +197,9 @@ class AiderAPI:
                         'data': {'chunk': chunk, 'session_id': session_id}
                     })
                 
+                # Log coder properties after streaming
+                log_coder_properties_simple(coder, "POST-STREAM")
+                
                 # Mark message as complete
                 message_queue.put({
                     'type': 'message_complete',
@@ -192,6 +208,7 @@ class AiderAPI:
                 
                 # Check for edits
                 if coder.aider_edited_files:
+                    logger.error(f"📝 Files edited: {list(coder.aider_edited_files)}")
                     message_queue.put({
                         'type': 'files_edited',
                         'data': {'files': list(coder.aider_edited_files), 'session_id': session_id}
@@ -200,6 +217,7 @@ class AiderAPI:
                 # Check for commits
                 if sessions[session_id].get('last_aider_commit_hash') != coder.last_aider_commit_hash:
                     if coder.last_aider_commit_hash:
+                        logger.error(f"📝 NEW COMMIT DETECTED: {coder.last_aider_commit_hash}")
                         commits = f"{coder.last_aider_commit_hash}~1"
                         diff = coder.repo.diff_commits(
                             coder.pretty,
@@ -218,9 +236,20 @@ class AiderAPI:
                         })
                         
                         sessions[session_id]['last_aider_commit_hash'] = coder.last_aider_commit_hash
+                
+                # Log final coder properties
+                log_coder_properties_simple(coder, "PROCESS_CHAT COMPLETE")
+                
+                logger.error("🔄 " + "="*50)
+                logger.error("🔄 PROCESS_CHAT THREAD COMPLETED SUCCESSFULLY")
+                logger.error("🔄 " + "="*50)
+                
             except Exception as e:
-                print(f"Error in process_chat: {str(e)}")
-                print(traceback.format_exc())
+                logger.error("💥 " + "="*50)
+                logger.error("💥 ERROR IN PROCESS_CHAT THREAD")
+                logger.error("💥 " + "="*50)
+                logger.error(f"Error: {str(e)}")
+                logger.error(f"Traceback:\n{traceback.format_exc()}")
                 
                 # Add error to queue
                 if session_id in message_queues:
@@ -230,9 +259,12 @@ class AiderAPI:
                     })
         
         # Create and start thread
+        logger = logging.getLogger(__name__)
+        logger.error(f"🧵 Creating background thread for process_chat")
         thread = threading.Thread(target=run_stream)
         thread.daemon = True
         thread.start()
+        logger.error(f"🧵 Background thread started successfully")
         return True
 
     @staticmethod
@@ -849,7 +881,9 @@ def run_command():
 def set_mode():
     """Set the mode for the current session"""
     logger = logging.getLogger(__name__)
-    logger.debug("set_mode endpoint called")
+    logger.error("🎯 " + "="*50)
+    logger.error("🎯 SET_MODE ENDPOINT CALLED")
+    logger.error("🎯 " + "="*50)
     
     try:
         data = request.json
@@ -859,7 +893,12 @@ def set_mode():
         reasoning_effort = data.get('reasoning_effort')
         thinking_tokens = data.get('thinking_tokens')
         
-        logger.debug(f"Mode switch request - Session ID: {session_id}, Mode: {mode}")
+        logger.error(f"🎯 Mode Change Request:")
+        logger.error(f"   Session ID: {session_id}")
+        logger.error(f"   New Mode: {mode}")
+        logger.error(f"   Architect Model: {architect_model}")
+        logger.error(f"   Reasoning Effort: {reasoning_effort}")
+        logger.error(f"   Thinking Tokens: {thinking_tokens}")
         
         if not session_id:
             logger.error("No session ID provided")
@@ -886,6 +925,9 @@ def set_mode():
         
         # Get current coder
         current_coder = session['coder']
+        
+        # Log current coder properties before mode change
+        log_coder_properties(current_coder, f"BEFORE MODE CHANGE to {mode}")
         
         # Prepare kwargs for new coder
         summarize_from_coder = True
@@ -929,15 +971,9 @@ def set_mode():
                 edit_format=edit_format,
                 summarize_from_coder=False)
             
-            # print current coder language
-            logger.error(f"Current coder language: {current_coder.chat_language}")
+            # Log new coder properties after creation
+            log_coder_properties(new_coder, f"NEW CODER CREATED with mode {mode}")
             
-            # print new coder language
-            logger.error(f"New coder language: {new_coder.chat_language}")
-            
-            # print current coder main model
-            logger.error(f"Current coder main model: {current_coder.main_model}")
-        
             new_coder.commands.io = io
             
             # Force the coder to cooperate, regardless of cmd line args
@@ -954,6 +990,9 @@ def set_mode():
         
         # Update session with new coder
         session['coder'] = new_coder
+        
+        # Log final coder properties after mode change
+        log_coder_properties(session['coder'], f"FINAL SESSION CODER after {mode}")
         
         # Add mode switch message to history
         mode_switch_message = f'Switched to {mode} mode'
@@ -976,6 +1015,10 @@ def set_mode():
                 'role': 'info',
                 'content': '\n'.join(announcements)
             })
+        
+        logger.error("🎯 " + "="*50)
+        logger.error("🎯 SET_MODE COMPLETED SUCCESSFULLY")
+        logger.error("🎯 " + "="*50)
         
         return jsonify({
             'status': 'success',
@@ -1167,12 +1210,18 @@ def update_api_keys():
 def update_model():
     """Update the model for the current session"""
     logger = logging.getLogger(__name__)
-    logger.debug("update_model endpoint called")
+    logger.error("🤖 " + "="*50)
+    logger.error("🤖 UPDATE_MODEL ENDPOINT CALLED")
+    logger.error("🤖 " + "="*50)
     
     try:
         data = request.json
         session_id = data.get('session_id')
         model = data.get('model')
+        
+        logger.error(f"🤖 Model Change Request:")
+        logger.error(f"   Session ID: {session_id}")
+        logger.error(f"   New Model: {model}")
         
         if not session_id or not model:
             logger.error("Session ID and model are required")
@@ -1184,6 +1233,9 @@ def update_model():
             return jsonify({'status': 'error', 'message': 'Session not found'}), 404
         
         current_coder = session['coder']
+        
+        # Log current coder properties before model change
+        log_coder_properties(current_coder, f"BEFORE MODEL CHANGE to {model}")
         
         try:
             # Create new coder with updated model
@@ -1201,13 +1253,24 @@ def update_model():
                 # Initialize new coder with the new model
                 new_coder = AiderAPI.initialize_coder(args)
                 
+                # Log new coder properties after creation
+                log_coder_properties(new_coder, f"NEW CODER CREATED with model {model}")
+                
                 # Copy file state from old coder
+                logger.error(f"🔄 Copying {len(current_coder.get_inchat_relative_files())} files from old coder")
                 for fname in current_coder.get_inchat_relative_files():
+                    logger.error(f"   Adding file: {fname}")
                     new_coder.add_rel_fname(fname)
+                
+                # Log coder properties after copying files
+                log_coder_properties(new_coder, f"AFTER COPYING FILES to {model}")
                 
                 # Update session with new coder
                 session['coder'] = new_coder
                 session['model'] = model
+                
+                # Log final coder properties after model change
+                log_coder_properties(session['coder'], f"FINAL SESSION CODER with model {model}")
                 
                 # Add info message
                 session['messages'].append({
@@ -1218,7 +1281,9 @@ def update_model():
                 # Save session
                 save_session(session_id, session)
                 
-                logger.debug(f"Successfully switched to model: {model}")
+                logger.error("🤖 " + "="*50)
+                logger.error("🤖 UPDATE_MODEL COMPLETED SUCCESSFULLY")
+                logger.error("🤖 " + "="*50)
                 
                 return jsonify({
                     'status': 'success',
@@ -1290,6 +1355,155 @@ def get_available_models():
             'status': 'error',
             'message': f'Error retrieving models: {str(e)}'
         }), 500
+
+def log_coder_properties(coder, context="Unknown"):
+    """Log detailed coder properties for debugging"""
+    logger = logging.getLogger(__name__)
+    logger.error(f"🔍 CODER PROPERTIES - {context}")
+    logger.error(f"   Instance ID: {id(coder)}")
+    logger.error(f"   Type: {type(coder)}")
+    logger.error(f"   Main Model: {getattr(coder, 'main_model', 'None')}")
+    logger.error(f"   Edit Format: {getattr(coder, 'edit_format', 'None')}")
+    logger.error(f"   Stream: {getattr(coder, 'stream', 'None')}")
+    logger.error(f"   Yield Stream: {getattr(coder, 'yield_stream', 'None')}")
+    logger.error(f"   Pretty: {getattr(coder, 'pretty', 'None')}")
+    logger.error(f"   Chat Language: {getattr(coder, 'chat_language', 'None')}")
+    
+    # Reflection properties (most important)
+    logger.error(f"   🔄 REFLECTION STATE:")
+    logger.error(f"      Has reflected_message: {hasattr(coder, 'reflected_message')}")
+    logger.error(f"      Reflected_message: {getattr(coder, 'reflected_message', 'None')}")
+    logger.error(f"      Num reflections: {getattr(coder, 'num_reflections', 'N/A')}")
+    logger.error(f"      Max reflections: {getattr(coder, 'max_reflections', 'N/A')}")
+    
+    # File state
+    logger.error(f"   📁 FILE STATE:")
+    logger.error(f"      Files in chat: {len(coder.get_inchat_relative_files()) if hasattr(coder, 'get_inchat_relative_files') else 'N/A'}")
+    logger.error(f"      Chat files: {list(coder.get_inchat_relative_files()) if hasattr(coder, 'get_inchat_relative_files') else 'N/A'}")
+    
+    # Safe handling of aider_edited_files
+    aider_edited_files = getattr(coder, 'aider_edited_files', [])
+    logger.error(f"      Aider edited files: {aider_edited_files if aider_edited_files else []}")
+    
+    # Git/Repo state
+    logger.error(f"   🗂️ GIT STATE:")
+    logger.error(f"      Last commit: {getattr(coder, 'last_aider_commit_hash', 'None')}")
+    logger.error(f"      Last commit message: {getattr(coder, 'last_aider_commit_message', 'None')}")
+    logger.error(f"      Repo path: {coder.repo.repo.git_dir if hasattr(coder, 'repo') and coder.repo else 'None'}")
+    
+    # Message state
+    logger.error(f"   💬 MESSAGE STATE:")
+    done_messages = getattr(coder, 'done_messages', [])
+    cur_messages = getattr(coder, 'cur_messages', [])
+    logger.error(f"      Done messages count: {len(done_messages) if done_messages else 0}")
+    logger.error(f"      Cur messages count: {len(cur_messages) if cur_messages else 0}")
+    logger.error(f"      Partial response content: {bool(getattr(coder, 'partial_response_content', ''))}")
+    logger.error(f"      Multi response content: {bool(getattr(coder, 'multi_response_content', ''))}")
+    
+    # Conversation context (most important for debugging)
+    logger.error(f"   📚 CONVERSATION CONTEXT:")
+    if done_messages:
+        logger.error(f"      Done messages ({len(done_messages)} total):")
+        for i, msg in enumerate(done_messages[-3:], 1):  # Show last 3 messages
+            role = msg.get('role', 'unknown')
+            content = msg.get('content', '')
+            if content:
+                # Truncate long content for readability
+                preview = content[:100] + "..." if len(content) > 100 else content
+                logger.error(f"         {i}. [{role.upper()}] {preview}")
+            else:
+                logger.error(f"         {i}. [{role.upper()}] <empty content>")
+    else:
+        logger.error(f"      Done messages: None/empty")
+    
+    if cur_messages:
+        logger.error(f"      Current messages ({len(cur_messages)} total):")
+        for i, msg in enumerate(cur_messages, 1):
+            role = msg.get('role', 'unknown')
+            content = msg.get('content', '')
+            if content:
+                # Truncate long content for readability
+                preview = content[:100] + "..." if len(content) > 100 else content
+                logger.error(f"         {i}. [{role.upper()}] {preview}")
+            else:
+                logger.error(f"         {i}. [{role.upper()}] <empty content>")
+    else:
+        logger.error(f"      Current messages: None/empty")
+    
+    # IO and Commands
+    logger.error(f"   🔧 IO & COMMANDS:")
+    logger.error(f"      IO type: {type(getattr(coder, 'io', 'None'))}")
+    logger.error(f"      Commands IO type: {type(getattr(coder.commands, 'io', 'None')) if hasattr(coder, 'commands') else 'N/A'}")
+    
+    # Auto settings
+    logger.error(f"   ⚙️ AUTO SETTINGS:")
+    logger.error(f"      Auto commits: {getattr(coder, 'auto_commits', 'N/A')}")
+    logger.error(f"      Auto lint: {getattr(coder, 'auto_lint', 'N/A')}")
+    logger.error(f"      Auto test: {getattr(coder, 'auto_test', 'N/A')}")
+    logger.error(f"      Auto copy context: {getattr(coder, 'auto_copy_context', 'N/A')}")
+    logger.error(f"      Auto accept architect: {getattr(coder, 'auto_accept_architect', 'N/A')}")
+    
+    # Error tracking
+    logger.error(f"   ⚠️ ERROR TRACKING:")
+    logger.error(f"      Num exhausted context windows: {getattr(coder, 'num_exhausted_context_windows', 'N/A')}")
+    logger.error(f"      Num malformed responses: {getattr(coder, 'num_malformed_responses', 'N/A')}")
+    
+    # Cost tracking
+    logger.error(f"   💰 COST TRACKING:")
+    logger.error(f"      Message cost: {getattr(coder, 'message_cost', 'N/A')}")
+    logger.error(f"      Total cost: {getattr(coder, 'total_cost', 'N/A')}")
+    logger.error(f"      Message tokens sent: {getattr(coder, 'message_tokens_sent', 'N/A')}")
+    logger.error(f"      Message tokens received: {getattr(coder, 'message_tokens_received', 'N/A')}")
+
+def log_coder_properties_simple(coder, context="Unknown"):
+    """Log basic coder properties for quick reference"""
+    logger = logging.getLogger(__name__)
+    logger.error(f"🔍 CODER BASIC - {context}")
+    logger.error(f"   Instance ID: {id(coder)}")
+    logger.error(f"   Type: {type(coder)}")
+    logger.error(f"   Main Model: {getattr(coder, 'main_model', 'None')}")
+    logger.error(f"   Edit Format: {getattr(coder, 'edit_format', 'None')}")
+    logger.error(f"   Chat Language: {getattr(coder, 'chat_language', 'None')}")
+    
+    # Most important reflection properties
+    logger.error(f"   🔄 Reflection: {getattr(coder, 'reflected_message', 'None')}")
+    logger.error(f"   🔄 Num reflections: {getattr(coder, 'num_reflections', 'N/A')}/{getattr(coder, 'max_reflections', 'N/A')}")
+    
+    # File and message state
+    logger.error(f"   📁 Files in chat: {len(coder.get_inchat_relative_files()) if hasattr(coder, 'get_inchat_relative_files') else 'N/A'}")
+    
+    # Safe handling of lists that might be None
+    done_messages = getattr(coder, 'done_messages', [])
+    cur_messages = getattr(coder, 'cur_messages', [])
+    aider_edited_files = getattr(coder, 'aider_edited_files', [])
+    
+    logger.error(f"   💬 Messages: {len(done_messages) if done_messages else 0} done, {len(cur_messages) if cur_messages else 0} current")
+    logger.error(f"   📝 Edited files: {len(aider_edited_files) if aider_edited_files else 0}")
+    logger.error(f"   🗂️ Last commit: {getattr(coder, 'last_aider_commit_hash', 'None')}")
+    
+    # Quick conversation context
+    logger.error(f"   📚 Last conversation:")
+    if done_messages and len(done_messages) > 0:
+        last_msg = done_messages[-1]
+        role = last_msg.get('role', 'unknown')
+        content = last_msg.get('content', '')
+        if content:
+            preview = content[:80] + "..." if len(content) > 80 else content
+            logger.error(f"      Last [{role.upper()}]: {preview}")
+        else:
+            logger.error(f"      Last [{role.upper()}]: <empty>")
+    else:
+        logger.error(f"      No conversation history")
+    
+    if cur_messages and len(cur_messages) > 0:
+        current_msg = cur_messages[-1]
+        role = current_msg.get('role', 'unknown')
+        content = current_msg.get('content', '')
+        if content:
+            preview = content[:80] + "..." if len(content) > 80 else content
+            logger.error(f"      Current [{role.upper()}]: {preview}")
+        else:
+            logger.error(f"      Current [{role.upper()}]: <empty>")
 
 def main():
     """
