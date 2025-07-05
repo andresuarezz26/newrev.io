@@ -153,6 +153,15 @@ const MODEL_CONFIGS = [
     requiresKey: 'OLLAMA_API_BASE'
   },
   {
+    value: 'ollama_chat/llama2',
+    label: 'Llama2 (Local)',
+    provider: 'Ollama',
+    description: 'Local coding model',
+    tier: 'free',
+    speed: 'variable',
+    requiresKey: 'OLLAMA_API_BASE'
+  },
+   {
     value: 'ollama_chat/codellama',
     label: 'Code Llama (Local)',
     provider: 'Ollama',
