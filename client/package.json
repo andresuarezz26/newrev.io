@@ -1,8 +1,8 @@
 {
-  "name": "aider-browser-client",
+  "name": "Newrev.io",
   "version": "0.1.0",
-  "description": "NewRev - Desktop UI for Aider AI pair programming",
-  "author": "NewRev Team",
+  "description": "Newrev - Desktop UI for terminal coding agents",
+  "author": "Newrev.io",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.11.0",
@@ -39,6 +39,7 @@
     "electron-dev-live": "concurrently \"npm start\" \"wait-on http://localhost:3000 && cross-env ELECTRON_USE_DEV_SERVER=true nodemon --exec electron . --watch public --watch src\"",
     "electron-pack": "npm run build && electron-builder",
     "electron-pack-unsigned": "npm run build && electron-builder --config.mac.identity=null",
+    "electron-pack-standalone": "npm run build && electron-builder --config.mac.identity=null --config.compression=maximum",
     "preelectron-pack": "npm run build",
     "start:web": "react-scripts start",
     "dev:hybrid": "concurrently \"npm run start:web\" \"wait-on http://localhost:3000 && cross-env ELECTRON_USE_DEV_SERVER=true nodemon --exec electron . --watch public --watch src\""
@@ -64,8 +65,9 @@
   "main": "public/electron.js",
   "homepage": "./",
   "build": {
-    "appId": "com.newrev.aider",
-    "productName": "NewRev",
+    "appId": "com.newrev.io",
+    "productName": "Newrev",
+    "icon": "assets/icon.png", 
     "directories": {
       "output": "dist-deps-check"
     },
@@ -83,6 +85,11 @@
       {
         "from": "../aider", 
         "to": "aider"
+      },
+      {
+        "from": "../python-dist",
+        "to": "python",
+        "filter": "**/*"
       }
     ],
     "mac": {
