@@ -48,11 +48,48 @@ message_queues = {}
 cancellation_requests = {}
 
 # Load environment variables from .env file
+# For packaged apps, also check in user data directory
 load_dotenv()
 
+# Also try to load from user data directory (for packaged apps)
+user_env_file = Path.home() / ".newrev" / ".env"
+if user_env_file.exists():
+    load_dotenv(user_env_file)
+
+# Store the original OPENROUTER_API_KEY to prevent it from being modified
+original_openrouter_key = os.environ.get('OPENROUTER_API_KEY')
+
+# Log environment variable for debugging
+if original_openrouter_key:
+    # Mask the key for security - show first 4 and last 4 characters
+    masked_key = original_openrouter_key[:4] + '*' * (len(original_openrouter_key) - 8) + original_openrouter_key[-4:] if len(original_openrouter_key) > 8 else '***'
+    print(f"OPENROUTER_API_KEY found: {masked_key}")
+else:
+    print("OPENROUTER_API_KEY not found in environment variables")
+    print(f"Tip: You can create {user_env_file} with your API keys")
+
 # Add after the app initialization
-SESSIONS_DIR = Path("sessions")
-SESSIONS_DIR.mkdir(exist_ok=True)
+# Use user's home directory for writable storage (important for packaged apps)
+import tempfile
+
+def ensure_user_data_dir():
+    """Ensure user data directory exists and return paths"""
+    try:
+        user_data_dir = Path.home() / ".newrev" / "data"
+        sessions_dir = user_data_dir / "sessions"
+        sessions_dir.mkdir(parents=True, exist_ok=True)
+        return user_data_dir, sessions_dir
+    except Exception as e:
+        print(f"Warning: Could not create user data directory: {e}")
+        # Fallback to temp directory
+        temp_dir = Path(tempfile.gettempdir()) / "newrev" / "data"
+        sessions_dir = temp_dir / "sessions"
+        sessions_dir.mkdir(parents=True, exist_ok=True)
+        return temp_dir, sessions_dir
+
+USER_DATA_DIR, SESSIONS_DIR = ensure_user_data_dir()
+print(f"Using data directory: {USER_DATA_DIR}")
+print(f"Using sessions directory: {SESSIONS_DIR}")
 
 def save_session(session_id, session_data):
     """Save session data to disk"""
@@ -111,6 +148,14 @@ class AiderAPI:
         logger.debug("\n=== Starting Coder Initialization ===")
         logger.debug(f"Current working directory: {os.getcwd()}")
         
+        # Restore the original OPENROUTER_API_KEY before calling cli_main
+        if original_openrouter_key:
+            os.environ['OPENROUTER_API_KEY'] = original_openrouter_key
+            # Mask the key for security - show first 4 and last 4 characters
+            masked_key = original_openrouter_key[:4] + '*' * (len(original_openrouter_key) - 8) + original_openrouter_key[-4:] if len(original_openrouter_key) > 8 else '***'
+            logger.debug(f"Restored OPENROUTER_API_KEY: {masked_key}")
+            print(f"Restored OPENROUTER_API_KEY: {masked_key}")
+        
         # Add default args to suppress warnings if no args provided
         if args is None:
             args = ['--no-show-model-warnings']
@@ -130,6 +175,11 @@ class AiderAPI:
             logger.debug("Creating coder instance...")
             coder = cli_main(argv=args, return_coder=True)
             logger.debug(f"Coder instance created: {type(coder)}")
+            
+            # Restore the original OPENROUTER_API_KEY after cli_main
+            if original_openrouter_key:
+                os.environ['OPENROUTER_API_KEY'] = original_openrouter_key
+                logger.debug("Restored OPENROUTER_API_KEY after cli_main")
             
             if not isinstance(coder, Coder):
                 logger.error(f"Invalid coder type: {type(coder)}")
@@ -1590,6 +1640,7 @@ def get_available_models():
             "gpt-3.5-turbo": "gpt-3.5-turbo",
             "deepseek-chat": "deepseek/deepseek-chat",
             "deepseek-coder": "deepseek/deepseek-coder",
+            "deepseek-chat-v3-free": "deepseek/deepseek-chat-v3-0324:free",
             "gemini-2.0-flash": "openrouter/google/gemini-2.0-flash-exp",
         }
         
