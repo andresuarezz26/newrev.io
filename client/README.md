@@ -34,6 +34,30 @@ NewRev is an Electron-based desktop application that provides a modern, user-fri
 
 3. **You're ready to run!** See [Running the App](#running-the-app) below.
 
+### Self-Contained Production Build Setup
+
+For production builds with bundled Python (recommended):
+
+1. **Download Python runtime:**
+   ```bash
+   # Download Python 3.9.6 for macOS (already done if you followed earlier steps)
+   wget https://github.com/indygreg/python-build-standalone/releases/download/20210724/cpython-3.9.6-x86_64-apple-darwin-install_only-20210724T1424.tar.gz
+   tar -xzvf cpython-3.9.6-x86_64-apple-darwin-install_only-20210724T1424.tar.gz
+   ```
+
+2. **Move Python to client directory:**
+   ```bash
+   mv python client/python
+   ```
+
+3. **Verify Python structure:**
+   ```bash
+   ls -la client/python/bin/python3  # Should exist
+   ls -la client/python/lib/python3.9/  # Should exist
+   ```
+
+4. **Ready for self-contained builds!** See [Self-Contained Build](#self-contained-build-recommended---with-bundled-python) below.
+
 ### Production Installation
 
 Download the latest release from the releases page or build from source:
@@ -92,11 +116,22 @@ Opens http://localhost:3000 in your browser.
 
 **Create distributable applications for different platforms.**
 
-#### Quick Build (Unsigned - for testing)
+#### Self-Contained Build (Recommended - with Bundled Python)
+```bash
+npm run electron-pack-bundled
+```
+- 🐍 **Includes Python runtime** - No Python installation required
+- 📦 **All dependencies bundled** - Flask, Aider, etc. included
+- ✅ **Works on clean systems** - Zero external dependencies
+- 🚀 **Faster startup** - No runtime downloads
+- Output: `dist-deps-check/NewRev-*.dmg`
+
+#### Quick Build (Unsigned - uses system Python)
 ```bash
 npm run electron-pack-unsigned
 ```
 - Creates unsigned DMG for macOS
+- Requires Python 3.8+ on target system
 - Output: `dist-deps-check/NewRev-*.dmg`
 - Ready for local testing and distribution
 
@@ -143,10 +178,117 @@ After building, find your distributables in:
 
 #### Build Configuration
 The build is configured in `package.json` under the `"build"` section:
-- **App ID:** `com.newrev.aider`
-- **Product Name:** NewRev
+- **App ID:** `com.newrev.io`
+- **Product Name:** Newrev
 - **Categories:** Developer Tools
-- **Included Resources:** Python API + Aider modules
+- **Included Resources:** Python runtime + API + Aider modules
+
+## Complete Production Build Guide
+
+### 🎯 Step-by-Step Self-Contained Build
+
+**Goal:** Create a single app file that works on any computer without Python installation.
+
+#### 1. **Prepare Environment**
+```bash
+cd /path/to/newrevio/client
+npm install
+```
+
+#### 2. **Setup Bundled Python** (First time only)
+```bash
+# If you haven't already, download and extract Python
+wget https://github.com/indygreg/python-build-standalone/releases/download/20210724/cpython-3.9.6-x86_64-apple-darwin-install_only-20210724T1424.tar.gz
+tar -xzvf cpython-3.9.6-x86_64-apple-darwin-install_only-20210724T1424.tar.gz
+mv python client/python
+
+# Verify the structure
+ls -la client/python/bin/python3  # Should exist
+ls -la client/python/lib/python3.9/  # Should exist
+```
+
+#### 3. **Install Python Dependencies**
+```bash
+npm run setup-python
+```
+This will:
+- Test the bundled Python runtime
+- Upgrade pip
+- Install Flask, Aider, and all dependencies
+- Verify the installation
+
+#### 4. **Build Self-Contained App**
+```bash
+npm run electron-pack-bundled
+```
+This will:
+- Run `setup-python` to ensure dependencies are installed
+- Build the React frontend
+- Package everything into a distributable app
+- Include Python runtime + all dependencies
+
+#### 5. **Test the Build**
+```bash
+# Open the created DMG file
+open dist-deps-check/Newrev-*.dmg
+
+# Or run the app directly
+dist-deps-check/mac/Newrev.app/Contents/MacOS/Newrev
+```
+
+#### 6. **Distribute**
+The final `Newrev-*.dmg` file is completely self-contained:
+- ✅ No Python installation required
+- ✅ No external dependencies
+- ✅ Works on clean macOS systems
+- ✅ Ready for distribution
+
+### 🔍 **Verification Checklist**
+
+Before distributing, verify your build:
+
+```bash
+# 1. Check bundled Python is included
+ls -la dist-deps-check/mac/Newrev.app/Contents/Resources/python/bin/python3
+
+# 2. Check API files are included  
+ls -la dist-deps-check/mac/Newrev.app/Contents/Resources/api/
+
+# 3. Check Aider is included
+ls -la dist-deps-check/mac/Newrev.app/Contents/Resources/aider/
+
+# 4. Test on a clean system (or VM) without Python installed
+```
+
+### 🚨 **Troubleshooting Production Builds**
+
+**Python not found in bundle:**
+```bash
+# Ensure Python is in the right location
+ls -la client/python/bin/python3
+# Re-run setup if missing
+npm run setup-python
+```
+
+**Dependencies missing:**
+```bash
+# Test bundled Python directly
+client/python/bin/python3 -c "import flask, aider; print('OK')"
+# Reinstall if needed
+npm run setup-python
+```
+
+**Build failures:**
+```bash
+# Clean and rebuild
+rm -rf client/build client/dist-deps-check
+npm run build-with-python
+```
+
+**App won't start:**
+- Check backend logs in the app (Cmd+L)
+- Verify you're running from a Git repository
+- Check console output for Python errors
 
 ## Development Commands
 
@@ -159,6 +301,9 @@ The build is configured in `package.json` under the `"build"` section:
 | `npm run electron` | Run Electron with built React |
 | **Building** |
 | `npm run build` | Build React for production |
+| `npm run setup-python` | Install Python dependencies in bundled runtime |
+| `npm run build-with-python` | Setup Python + build React |
+| `npm run electron-pack-bundled` | Build self-contained app (recommended) |
 | `npm run electron-pack-unsigned` | Build unsigned distributable (testing) |
 | `npm run electron-pack` | Build signed distributable (production) |
 | **Advanced Building** |
@@ -190,19 +335,42 @@ NewRev includes comprehensive backend monitoring and logging:
 
 ## Smart Python Runtime
 
-NewRev automatically manages Python environments:
+NewRev offers two Python runtime approaches:
 
-### 🔍 **Detection Phase**
+### 🏆 **Bundled Python (Recommended for Production)**
+When using `npm run electron-pack-bundled`:
+
+#### ✅ **Setup Phase** (Development)
+1. Download Python runtime to `client/python/`
+2. Install all dependencies with `npm run setup-python`
+3. Bundle everything into the final app
+
+#### 🚀 **Runtime Phase** (Production)
+1. **Instant startup** - No downloads or setup required
+2. **Zero dependencies** - Python + all packages included
+3. **Consistent environment** - Same Python version everywhere
+4. **Isolated** - No conflicts with system Python
+
+#### ✅ **Benefits**
+- **Self-contained** - Works on clean systems
+- **Fast startup** - No runtime setup delays
+- **Predictable** - Same environment every time
+- **Easy distribution** - Single app file
+
+### 🔄 **Dynamic Python (Fallback)**
+When bundled Python isn't available:
+
+#### 🔍 **Detection Phase**
 1. Checks for existing Python 3.8+ installation
 2. Verifies required dependencies (Flask, etc.)
 
-### 📥 **Auto-Download Phase** (if needed)
+#### 📥 **Auto-Download Phase** (if needed)
 1. Downloads portable Python from [python-build-standalone](https://github.com/indygreg/python-build-standalone)
 2. Stores in `~/.newrev/runtimes/python/`
 3. Creates isolated virtual environment
 4. Installs all required dependencies
 
-### ✅ **Benefits**
+#### ✅ **Benefits**
 - **Zero user setup** - Works on any computer
 - **Cross-platform** - macOS, Windows, Linux
 - **Persistent** - Only downloads once

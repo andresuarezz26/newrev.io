@@ -9,10 +9,18 @@ class RuntimeManager {
     this.userHome = os.homedir();
     this.newrevDir = path.join(this.userHome, '.newrev');
     this.runtimesDir = path.join(this.newrevDir, 'runtimes');
-    this.pythonDir = path.join(this.runtimesDir, 'python');
     
-    // Ensure directories exist
-    this.ensureDirectories();
+    // Check if we're running from a packaged app (with bundled Python)
+    this.isPackaged = process.env.NODE_ENV === 'production' && process.resourcesPath;
+    
+    if (this.isPackaged) {
+      // Use bundled Python from app resources
+      this.pythonDir = path.join(process.resourcesPath, 'python');
+    } else {
+      // Use downloaded Python in development
+      this.pythonDir = path.join(this.runtimesDir, 'python');
+      this.ensureDirectories();
+    }
   }
 
   ensureDirectories() {
@@ -300,7 +308,28 @@ class RuntimeManager {
 
   // Main method to ensure Python is available
   async ensurePythonRuntime(progressCallback) {
-    // First check if we already have a working Python runtime
+    // If running from packaged app, Python should already be bundled
+    if (this.isPackaged) {
+      progressCallback?.({ 
+        stage: 'checking', 
+        message: 'Checking bundled Python runtime...',
+        progress: 50 
+      });
+      
+      const bundledCheck = await this.checkPythonRuntime();
+      if (bundledCheck.available) {
+        progressCallback?.({ 
+          stage: 'complete', 
+          message: 'Bundled Python runtime ready',
+          progress: 100 
+        });
+        return bundledCheck;
+      } else {
+        throw new Error('Bundled Python runtime is not working: ' + bundledCheck.reason);
+      }
+    }
+    
+    // Development mode - check existing or download
     const existingCheck = await this.checkPythonRuntime();
     if (existingCheck.available) {
       progressCallback?.({ 

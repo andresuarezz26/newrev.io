@@ -24,7 +24,7 @@ function createWindow() {
       enableRemoteModule: false,
       preload: path.join(__dirname, 'preload.js')
     },
-    icon: path.join(__dirname, 'favicon.ico'), // You can add an icon here
+    icon: path.join(__dirname, '../../assets/icon.svg'), // App icon
     show: false // Don't show until ready
   });
 
@@ -69,6 +69,33 @@ function createWindow() {
     mainWindow = null;
     // Don't kill Python API here - only when app actually quits
   });
+}
+
+// Get bundled Python path for self-contained apps
+function getBundledPythonPath() {
+  const isDev = process.env.NODE_ENV === 'development' || 
+                process.defaultApp || 
+                /[\\/]electron-prebuilt[\\/]/.test(process.execPath) || 
+                /[\\/]electron[\\/]/.test(process.execPath);
+  
+  const os = require('os');
+  const platform = os.platform();
+  
+  if (isDev) {
+    // In development, use the extracted Python from client directory
+    if (platform === 'win32') {
+      return path.join(__dirname, '../python/python.exe');
+    } else {
+      return path.join(__dirname, '../python/bin/python3');
+    }
+  } else {
+    // In production, use bundled Python from app resources
+    if (platform === 'win32') {
+      return path.join(process.resourcesPath, 'python', 'python.exe');
+    } else {
+      return path.join(process.resourcesPath, 'python', 'bin', 'python3');
+    }
+  }
 }
 
 function createMenu() {
@@ -185,6 +212,40 @@ async function ensurePythonEnvironment(progressCallback) {
   const { execSync } = require('child_process');
   const os = require('os');
   
+  // Try to use bundled Python first
+  const bundledPython = getBundledPythonPath();
+  
+  if (fs.existsSync(bundledPython)) {
+    console.log('Using bundled Python:', bundledPython);
+    
+    // Test if bundled Python works
+    try {
+      const version = execSync(`"${bundledPython}" --version`, { 
+        encoding: 'utf8', 
+        stdio: 'pipe', 
+        timeout: 5000 
+      }).trim();
+      console.log('Bundled Python version:', version);
+      
+      // Test basic imports
+      execSync(`"${bundledPython}" -c "import flask, flask_cors, dotenv; print('Dependencies OK')"`, { 
+        stdio: 'pipe', 
+        timeout: 10000 
+      });
+      
+      console.log('Bundled Python is working with all dependencies');
+      progressCallback?.({ stage: 'complete', message: 'Using bundled Python runtime', progress: 100 });
+      return bundledPython;
+    } catch (error) {
+      console.log('Bundled Python failed test:', error.message);
+      console.log('Falling back to runtime manager...');
+    }
+  } else {
+    console.log('Bundled Python not found at:', bundledPython);
+    console.log('Falling back to runtime manager...');
+  }
+  
+  // Fallback to existing runtime manager logic
   const runtimeManager = new RuntimeManager();
   
   // Define paths for virtual environment  
@@ -378,20 +439,60 @@ function startPythonAPI(projectPath = null) {
       
       portCheck.connect(API_PORT, 'localhost');
       
-      // Enhanced environment setup - avoid circular import by not adding aider to PYTHONPATH
+      // Enhanced environment setup for bundled or system Python
       const env = {
         ...process.env,
-        PATH: process.env.PATH + ':/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/opt/anaconda3/bin:/opt/anaconda3/envs/aider-env/bin',
-        PYTHONPATH: workingDir, // Only add the base working directory
         PYTHONUNBUFFERED: '1',
-        // Add common Python library paths
-        DYLD_LIBRARY_PATH: '/usr/local/lib:/opt/homebrew/lib',
-        // Add conda environment activation
-        CONDA_DEFAULT_ENV: 'aider-env',
         // Tell the API to wait for project selection
         NEWREV_WAIT_FOR_PROJECT: projectPath ? 'false' : 'true',
         NEWREV_PROJECT_PATH: projectPath || '',
       };
+      
+      // Check if we're using bundled Python
+      const bundledPython = getBundledPythonPath();
+      const usingBundledPython = require('fs').existsSync(bundledPython) && pythonCmd === bundledPython;
+      
+      if (usingBundledPython) {
+        console.log('Setting up environment for bundled Python');
+        
+        // For bundled Python, set up the environment to use bundled libraries
+        const pythonHome = isDev 
+          ? path.join(__dirname, '../python')
+          : path.join(process.resourcesPath, 'python');
+        
+        const pythonLibDir = isDev 
+          ? path.join(__dirname, '../python/lib/python3.9')
+          : path.join(process.resourcesPath, 'python', 'lib', 'python3.9');
+        
+        const sitePackagesDir = path.join(pythonLibDir, 'site-packages');
+        
+        // Set Python environment variables for bundled runtime
+        env.PYTHONHOME = pythonHome;
+        env.PYTHONPATH = `${sitePackagesDir}${path.delimiter}${workingDir}`;
+        
+        // Add bundled Python to PATH
+        const pythonBinDir = isDev 
+          ? path.join(__dirname, '../python/bin')
+          : path.join(process.resourcesPath, 'python', 'bin');
+        
+        if (require('fs').existsSync(pythonBinDir)) {
+          env.PATH = `${pythonBinDir}${path.delimiter}${env.PATH}`;
+        }
+        
+        console.log('Bundled Python environment setup:');
+        console.log('  PYTHONHOME:', env.PYTHONHOME);
+        console.log('  PYTHONPATH:', env.PYTHONPATH);
+      } else {
+        console.log('Setting up environment for system Python');
+        
+        // For system Python, use the existing setup
+        env.PATH = process.env.PATH + ':/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/opt/anaconda3/bin:/opt/anaconda3/envs/aider-env/bin';
+        env.PYTHONPATH = workingDir; // Only add the base working directory
+        // Add common Python library paths
+        env.DYLD_LIBRARY_PATH = '/usr/local/lib:/opt/homebrew/lib';
+        // Add conda environment activation
+        env.CONDA_DEFAULT_ENV = 'aider-env';
+      }
       
       // Setup logging
       const os = require('os');

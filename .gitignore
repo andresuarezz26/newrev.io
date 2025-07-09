@@ -1,3 +1,5 @@
 node_modules
 .aider*
 .env
+package-mac-signed.sh
+certificate.p12
